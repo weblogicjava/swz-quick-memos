@@ -2860,6 +2860,10 @@ git status --short
 
 Expected: only intentionally untracked build files appear, or the working tree is clean.
 
+## Tracked Deferred Notes
+
+- **Block id placement on multi-line records:** All write paths (`QuickMemoParser.serializeRecord` for append/update, `MarkdownRecordRepository.backfillMissingIds`) place the `^oqm-...` id on the FIRST line of a multi-line list item, and `extractBlockId` reads it from the first line. This is internally consistent and matches Obsidian's common list-item block semantics. If strict last-line placement is later required for multi-line bodies, change `serializeRecord` and `backfillMissingIds` together and re-verify `extractBlockId`/`stripBlockId`. Not a v1 blocker.
+
 ## Plan Self-Review
 
 Spec coverage:
