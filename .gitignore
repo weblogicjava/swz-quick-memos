@@ -6,3 +6,6 @@ coverage/
 .DS_Store
 .obsidian/
 .vault-test/
+__pycache__/
+*.pyc
+.claude/skills/
