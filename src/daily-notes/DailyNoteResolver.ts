@@ -13,7 +13,11 @@ export class DailyNoteResolver {
   ) {}
 
   async resolve(date: string): Promise<DateFileResolution> {
-    const config = this.dailyNotesConfig;
+    // When the user opts into the plugin's own path settings, ignore the (often
+    // unreliable to read) Daily Notes config entirely and use the folder/format
+    // they configured below.
+    const useOwn = this.settings.overrideDailyNotesConfig;
+    const config = useOwn ? undefined : this.dailyNotesConfig;
     const hasDailyNotesConfig = Boolean(config?.folder || config?.format);
     const folder = trimSlashes(hasDailyNotesConfig ? config?.folder ?? '' : this.settings.fallbackDailyNotesFolder);
     const format = hasDailyNotesConfig ? config?.format ?? this.settings.fallbackDateFormat : this.settings.fallbackDateFormat;

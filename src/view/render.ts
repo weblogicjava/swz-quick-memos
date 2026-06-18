@@ -9,6 +9,7 @@ export interface OverviewState {
   selectedDate: string;
   todayDate: string;
   editingRecordId?: string;
+  openMenuRecordId?: string;
   filters: ViewFilters;
 }
 
@@ -23,6 +24,7 @@ export interface OverviewCallbacks {
   onCopyBlock(record: QuickMemoRecord): void;
   onOpenSource(record: QuickMemoRecord): void;
   onFilterChange(filters: Partial<ViewFilters>): void;
+  onToggleMenu(recordId: string): void;
 }
 
 /** Type filter option values, including composite todo-status filters. */
@@ -124,12 +126,23 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
   }
 
   for (const record of state.records) {
-    renderRecord(list, record, state.editingRecordId === record.id, callbacks);
+    const key = recordKey(record);
+    renderRecord(list, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks);
   }
 }
 
-function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boolean, callbacks: OverviewCallbacks): void {
+function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boolean, menuOpen: boolean, callbacks: OverviewCallbacks): void {
   const card = appendDiv(list, `oqm-record oqm-record-${record.type}`);
+
+  // Top-right "more" trigger; actions live in a dropdown rather than a bottom row.
+  const trigger = appendEl(card, 'button', 'oqm-record-menu-trigger') as HTMLButtonElement;
+  trigger.type = 'button';
+  trigger.textContent = '⋮';
+  trigger.setAttribute('aria-label', '更多操作');
+  trigger.setAttribute('aria-haspopup', 'true');
+  trigger.setAttribute('aria-expanded', String(menuOpen));
+  trigger.onclick = () => callbacks.onToggleMenu(recordKey(record));
+
   const meta = appendDiv(card, 'oqm-record-meta');
   appendEl(meta, 'span', '', record.time);
   const badge = appendEl(meta, 'span', 'oqm-record-badge') as HTMLElement;
@@ -161,15 +174,28 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
 
   appendDiv(card, 'oqm-record-content', record.body ? `${record.content}\n${record.body}` : record.content);
 
-  const actions = appendDiv(card, 'oqm-record-actions');
-  if (record.type === 'todo') {
-    const toggle = appendEl(actions, 'button', '', record.completed ? '标记未完成' : '完成') as HTMLButtonElement;
-    toggle.onclick = () => callbacks.onToggleTodo(record);
+  if (menuOpen) {
+    const menu = appendDiv(card, 'oqm-record-menu');
+    if (record.type === 'todo') {
+      addMenuItem(menu, record.completed ? '标记未完成' : '标记完成', () => callbacks.onToggleTodo(record));
+    }
+    addMenuItem(menu, '编辑', () => callbacks.onEdit(record));
+    addMenuItem(menu, '复制块链接', () => callbacks.onCopyBlock(record));
+    addMenuItem(menu, '打开源文件', () => callbacks.onOpenSource(record));
+    addMenuItem(menu, '删除', () => callbacks.onDelete(record), 'oqm-record-menu-item-danger');
   }
-  (appendEl(actions, 'button', '', '编辑') as HTMLButtonElement).onclick = () => callbacks.onEdit(record);
-  (appendEl(actions, 'button', '', '删除') as HTMLButtonElement).onclick = () => callbacks.onDelete(record);
-  (appendEl(actions, 'button', '', '复制块链接') as HTMLButtonElement).onclick = () => callbacks.onCopyBlock(record);
-  (appendEl(actions, 'button', '', '打开源文件') as HTMLButtonElement).onclick = () => callbacks.onOpenSource(record);
+}
+
+function addMenuItem(menu: HTMLElement, label: string, handler: () => void, cls?: string): void {
+  const item = appendEl(menu, 'button', `oqm-record-menu-item${cls ? ` ${cls}` : ''}`, label) as HTMLButtonElement;
+  item.type = 'button';
+  item.onclick = handler;
+}
+
+/** Stable per-record key for view state (editing/open-menu). Falls back to a
+ *  file+line locator when a record has no block id (pure-markdown mode). */
+export function recordKey(record: QuickMemoRecord): string {
+  return record.id ?? `${record.filePath}:${record.lineStart}`;
 }
 
 function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate: string, selectedDate: string, callbacks: OverviewCallbacks): void {
@@ -179,14 +205,14 @@ function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate:
 
   appendDiv(container, 'oqm-section-label', '近 3 个月活动');
 
-  // A single flat stream of small squares for the last ~3 months ending today.
-  // Squares are not grouped by month; they wrap to fill the sidebar width.
+  // A single flat stream of exactly 90 small squares, anchored at the 1st of the
+  // month two months before today. Today therefore falls inside the grid (not at
+  // the end), and the count is always 90 regardless of the selected date.
   const grid = appendDiv(container, 'oqm-heatmap-grid');
-  const end = parseDate(todayDate);
-  const cursor = new Date(end);
-  cursor.setDate(cursor.getDate() - 89); // 90 days inclusive
+  const [year, month] = todayDate.split('-').map((part) => Number(part));
+  const cursor = new Date(year, month - 3, 1); // 1st of (this month - 2)
 
-  while (cursor <= end) {
+  for (let i = 0; i < 90; i += 1) {
     const dateStr = formatDay(cursor);
     const count = counts.get(dateStr) ?? 0;
     const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));

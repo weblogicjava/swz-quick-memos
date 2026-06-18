@@ -17,6 +17,7 @@ describe('renderOverview', () => {
       onCopyBlock: vi.fn(),
       onOpenSource: vi.fn(),
       onFilterChange: vi.fn(),
+      onToggleMenu: vi.fn(),
     };
 
     renderOverview(root, {
@@ -27,6 +28,7 @@ describe('renderOverview', () => {
       selectedDate: '2026-06-18',
       todayDate: '2026-06-18',
       editingRecordId: undefined,
+      openMenuRecordId: undefined,
       filters: {},
     }, callbacks);
 
@@ -57,12 +59,61 @@ describe('renderOverview', () => {
       selectedDate: '2026-06-18',
       todayDate: '2026-06-18',
       editingRecordId: undefined,
+      openMenuRecordId: undefined,
       filters: {},
     }, callbacks);
 
     const day15 = Array.from(root.querySelectorAll('.oqm-heatmap-day')).find((cell) => cell.getAttribute('title')?.startsWith('2026-06-15')) as HTMLButtonElement;
     day15.click();
     expect(callbacks.onSelectDate).toHaveBeenCalledWith('2026-06-15');
+  });
+
+  it('renders record actions behind a top-right menu, not a bottom action row', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [makeRecord('oqm-9', '2026-06-18', '09:00', 'flash', 'idea #a')],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+    }, callbacks);
+
+    // No bottom action row and no open menu by default; trigger is present.
+    expect(root.querySelector('.oqm-record-actions')).toBeNull();
+    expect(root.querySelector('.oqm-record-menu')).toBeNull();
+    const trigger = root.querySelector('.oqm-record-menu-trigger') as HTMLButtonElement;
+    expect(trigger).toBeTruthy();
+
+    trigger.click();
+    expect(callbacks.onToggleMenu).toHaveBeenCalledWith('oqm-9');
+  });
+
+  it('shows the action menu only for the open record', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [makeRecord('oqm-9', '2026-06-18', '09:00', 'todo', 'task #t', false)],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: 'oqm-9',
+      filters: {},
+    }, callbacks);
+
+    const items = Array.from(root.querySelectorAll('.oqm-record-menu-item')) as HTMLButtonElement[];
+    expect(items.map((item) => item.textContent)).toEqual(['标记完成', '编辑', '复制块链接', '打开源文件', '删除']);
+    items[0].click(); // 标记完成
+    expect(callbacks.onToggleTodo).toHaveBeenCalled();
+    items[4].click(); // 删除
+    expect(callbacks.onDelete).toHaveBeenCalled();
   });
 
   it('offers all six type filter options including todo status composites', () => {
@@ -75,6 +126,7 @@ describe('renderOverview', () => {
       selectedDate: '2026-06-18',
       todayDate: '2026-06-18',
       editingRecordId: undefined,
+      openMenuRecordId: undefined,
       filters: {},
     }, makeCallbacks());
 
@@ -127,6 +179,7 @@ describe('renderOverview', () => {
       selectedDate: '2026-06-18',
       todayDate: '2026-06-18',
       editingRecordId: undefined,
+      openMenuRecordId: undefined,
       filters: {},
     }, callbacks);
 
@@ -158,9 +211,10 @@ function makeCallbacks() {
     onCopyBlock: vi.fn(),
     onOpenSource: vi.fn(),
     onFilterChange: vi.fn(),
+    onToggleMenu: vi.fn(),
   };
 }
 
-function makeRecord(id: string, date: string, time: string, type: QuickMemoRecord['type'], content: string): QuickMemoRecord {
-  return { id, date, time, type, content, tags: content.match(/#[a-z]/g) ?? [], filePath: `${date}.md`, lineStart: 1, lineEnd: 1, hasStableId: true, raw: content, contentHash: id };
+function makeRecord(id: string, date: string, time: string, type: QuickMemoRecord['type'], content: string, completed?: boolean): QuickMemoRecord {
+  return { id, date, time, type, content, tags: content.match(/#[a-z]/g) ?? [], completed, filePath: `${date}.md`, lineStart: 1, lineEnd: 1, hasStableId: true, raw: content, contentHash: id };
 }

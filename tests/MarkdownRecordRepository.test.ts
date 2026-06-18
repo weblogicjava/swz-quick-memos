@@ -15,7 +15,7 @@ describe('MarkdownRecordRepository', () => {
 
   it('respects pure markdown mode when block ids are disabled', async () => {
     const vault = new FakeVault();
-    const settings = { ...DEFAULT_SETTINGS, enableBlockIds: false };
+    const settings = { ...FLAT_SETTINGS, enableBlockIds: false };
     const repo = makeRepo(vault, settings);
     await repo.appendRecord({ date: '2026-06-18', time: '10:00', type: 'record', content: 'plain' }, 'a1b2');
     expect(await vault.read('Daily Notes/2026-06-18.md')).toContain('- 10:00 [记录] plain');
@@ -47,7 +47,7 @@ describe('MarkdownRecordRepository', () => {
 
   it('returns the last appended record in pure-markdown mode', async () => {
     const vault = new FakeVault({ 'Daily Notes/2026-06-18.md': '## Quick Memo\n\n- 08:00 [记录] earlier note\n' });
-    const settings = { ...DEFAULT_SETTINGS, enableBlockIds: false };
+    const settings = { ...FLAT_SETTINGS, enableBlockIds: false };
     const repo = makeRepo(vault, settings);
     const returned = await repo.appendRecord({ date: '2026-06-18', time: '11:30', type: 'record', content: 'appended later' }, 'a1b2');
     expect(returned.content).toBe('appended later');
@@ -80,7 +80,10 @@ describe('MarkdownRecordRepository', () => {
   });
 });
 
-function makeRepo(vault: FakeVault, settings = DEFAULT_SETTINGS): MarkdownRecordRepository {
+/** Flat Daily-Notes-style settings so repository tests use simple `Daily Notes/YYYY-MM-DD.md` paths. */
+const FLAT_SETTINGS = { ...DEFAULT_SETTINGS, overrideDailyNotesConfig: true, fallbackDailyNotesFolder: 'Daily Notes', fallbackDateFormat: 'YYYY-MM-DD' };
+
+function makeRepo(vault: FakeVault, settings = FLAT_SETTINGS): MarkdownRecordRepository {
   const resolver = new DailyNoteResolver(vault, undefined, settings);
   return new MarkdownRecordRepository(vault, resolver, new QuickMemoParser(settings.quickMemoHeading), settings);
 }

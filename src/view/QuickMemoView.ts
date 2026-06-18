@@ -5,13 +5,14 @@ import type { IndexService } from '../index/IndexService';
 import type { MarkdownRecordRepository } from '../markdown/MarkdownRecordRepository';
 import { randomIdSuffix } from '../markdown/id';
 import { filterRecordsForView, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
-import { renderOverview } from './render';
+import { renderOverview, recordKey } from './render';
 
 export class QuickMemoView extends ItemView {
   private selectedDate = today();
   private currentDay = today();
   private filters: ViewFilters = {};
   private editingRecordId: string | undefined;
+  private openMenuRecordId: string | undefined;
   private dayWatcher: number | undefined;
 
   constructor(
@@ -82,6 +83,7 @@ export class QuickMemoView extends ItemView {
       selectedDate: this.selectedDate,
       todayDate: today(),
       editingRecordId: this.editingRecordId,
+      openMenuRecordId: this.openMenuRecordId,
       filters: this.filters,
     }, {
       onSave: (draft) => void this.saveDraft(draft),
@@ -89,9 +91,13 @@ export class QuickMemoView extends ItemView {
         this.selectedDate = date;
         this.render();
       },
-      onToggleTodo: (record) => void this.toggleTodo(record),
+      onToggleTodo: (record) => {
+        this.openMenuRecordId = undefined;
+        void this.toggleTodo(record);
+      },
       onEdit: (record) => {
-        this.editingRecordId = record.id;
+        this.openMenuRecordId = undefined;
+        this.editingRecordId = recordKey(record);
         this.render();
       },
       onSaveEdit: (record, changes) => void this.saveEdit(record, changes),
@@ -99,11 +105,25 @@ export class QuickMemoView extends ItemView {
         this.editingRecordId = undefined;
         this.render();
       },
-      onDelete: (record) => void this.deleteRecord(record),
-      onCopyBlock: (record) => this.copyBlock(record),
-      onOpenSource: (record) => void this.openSource(record),
+      onDelete: (record) => {
+        this.openMenuRecordId = undefined;
+        void this.deleteRecord(record);
+      },
+      onCopyBlock: (record) => {
+        this.openMenuRecordId = undefined;
+        this.copyBlock(record);
+        this.render();
+      },
+      onOpenSource: (record) => {
+        this.openMenuRecordId = undefined;
+        void this.openSource(record);
+      },
       onFilterChange: (filters) => {
         this.filters = { ...this.filters, ...filters };
+        this.render();
+      },
+      onToggleMenu: (recordId) => {
+        this.openMenuRecordId = this.openMenuRecordId === recordId ? undefined : recordId;
         this.render();
       },
     });

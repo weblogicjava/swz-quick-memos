@@ -6,8 +6,9 @@ export const DEFAULT_SETTINGS: QuickMemoSettings = {
   userSlogan: 'Capture the moment.',
   avatar: '',
   quickMemoHeading: DEFAULT_QUICK_MEMO_HEADING,
-  fallbackDailyNotesFolder: 'Daily Notes',
-  fallbackDateFormat: 'YYYY-MM-DD',
+  overrideDailyNotesConfig: true,
+  fallbackDailyNotesFolder: '每日工作',
+  fallbackDateFormat: 'YYYY/MM/YYYY-MM-DD',
   enableBlockIds: true,
   defaultRecordType: 'flash',
   sortDirection: 'desc',
@@ -32,6 +33,7 @@ export function normalizeSettings(raw: unknown): QuickMemoSettings {
   merged.userSlogan = ensureString(merged.userSlogan, DEFAULT_SETTINGS.userSlogan);
   merged.avatar = ensureString(merged.avatar, DEFAULT_SETTINGS.avatar);
   merged.quickMemoHeading = ensureString(merged.quickMemoHeading, DEFAULT_SETTINGS.quickMemoHeading).trim() || DEFAULT_SETTINGS.quickMemoHeading;
+  merged.overrideDailyNotesConfig = typeof merged.overrideDailyNotesConfig === 'boolean' ? merged.overrideDailyNotesConfig : DEFAULT_SETTINGS.overrideDailyNotesConfig;
   merged.fallbackDailyNotesFolder = ensureString(merged.fallbackDailyNotesFolder, DEFAULT_SETTINGS.fallbackDailyNotesFolder).trim();
   merged.fallbackDateFormat = ensureString(merged.fallbackDateFormat, DEFAULT_SETTINGS.fallbackDateFormat).trim() || DEFAULT_SETTINGS.fallbackDateFormat;
   merged.enableBlockIds = typeof merged.enableBlockIds === 'boolean' ? merged.enableBlockIds : DEFAULT_SETTINGS.enableBlockIds;

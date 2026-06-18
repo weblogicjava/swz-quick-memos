@@ -57,8 +57,18 @@ export class QuickMemoSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('兜底日记文件夹')
-      .setDesc('Daily Notes 配置不可用时使用。')
+      .setName('使用自定义日记路径')
+      .setDesc('开启后忽略 Obsidian Daily Notes 配置，按下面的文件夹和日期格式定位文件。推荐开启，定位最稳定。')
+      .addToggle((toggle) => toggle
+        .setValue(this.plugin.settings.overrideDailyNotesConfig)
+        .onChange(async (value) => {
+          this.plugin.settings.overrideDailyNotesConfig = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('日记文件夹')
+      .setDesc('记录写入的文件夹，例如 每日工作。')
       .addText((text) => text
         .setValue(this.plugin.settings.fallbackDailyNotesFolder)
         .onChange(async (value) => {
@@ -67,8 +77,8 @@ export class QuickMemoSettingTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('兜底日期格式')
-      .setDesc('支持 YYYY、MM、DD，例如 YYYY-MM-DD 或 YYYY/MM/DD。')
+      .setName('日期格式')
+      .setDesc('支持 YYYY、MM、DD。例如 YYYY/MM/YYYY-MM-DD 会生成 2026/06/2026-06-19.md。')
       .addText((text) => text
         .setValue(this.plugin.settings.fallbackDateFormat)
         .onChange(async (value) => {

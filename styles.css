@@ -212,10 +212,12 @@
 }
 
 .oqm-record {
+  position: relative;
   border: 1px solid var(--background-modifier-border);
   border-left: 3px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
   padding: var(--size-4-3);
+  padding-right: 36px;
   background: var(--background-secondary);
   transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
@@ -223,6 +225,67 @@
 .oqm-record:hover {
   border-color: var(--background-modifier-border-hover);
   box-shadow: 0 1px 3px var(--background-modifier-box-shadow);
+}
+
+.oqm-record-menu-trigger {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.oqm-record-menu-trigger:hover,
+.oqm-record:hover .oqm-record-menu-trigger {
+  opacity: 1;
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.oqm-record-menu {
+  position: absolute;
+  top: 32px;
+  right: 6px;
+  z-index: 20;
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: 0 6px 20px var(--background-modifier-box-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.oqm-record-menu-item {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.oqm-record-menu-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.oqm-record-menu-item-danger {
+  color: var(--text-error, #e05d5d);
 }
 
 .oqm-record-flash { border-left-color: var(--color-yellow, var(--interactive-accent)); }

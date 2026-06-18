@@ -7,6 +7,7 @@ export interface QuickMemoSettings {
   userSlogan: string;
   avatar: string;
   quickMemoHeading: string;
+  overrideDailyNotesConfig: boolean;
   fallbackDailyNotesFolder: string;
   fallbackDateFormat: string;
   enableBlockIds: boolean;
