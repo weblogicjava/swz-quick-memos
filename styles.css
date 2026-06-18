@@ -26,15 +26,14 @@
 
 .oqm-layout {
   display: grid;
-  grid-template-columns: minmax(208px, 256px) minmax(380px, 1fr) minmax(208px, 280px);
+  grid-template-columns: minmax(232px, 280px) minmax(380px, 1fr);
   gap: var(--size-4-4);
   height: 100%;
   padding: var(--size-4-4);
 }
 
 .oqm-sidebar,
-.oqm-main,
-.oqm-heatmap {
+.oqm-main {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -44,8 +43,7 @@
   background: var(--background-primary);
 }
 
-.oqm-sidebar,
-.oqm-heatmap {
+.oqm-sidebar {
   overflow: auto;
 }
 
@@ -297,37 +295,27 @@
   background: var(--background-secondary);
 }
 
-/* ---------- Heatmap (current month calendar) ---------- */
+/* ---------- Heatmap (GitHub-style, last 3 months, stacked in sidebar) ---------- */
 
-.oqm-heatmap-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+.oqm-heatmap-month-block {
   margin-bottom: var(--size-4-3);
 }
 
-.oqm-heatmap-month {
-  font-size: var(--font-ui-medium);
-  font-weight: 600;
-  color: var(--text-normal);
+.oqm-heatmap-month-block:last-child {
+  margin-bottom: 0;
 }
 
-.oqm-heatmap-hint {
+.oqm-heatmap-month-label {
   font-size: var(--font-ui-smaller);
-  color: var(--text-faint);
+  color: var(--text-muted);
+  margin-bottom: 4px;
 }
 
-.oqm-heatmap-grid {
+.oqm-heatmap-month-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-
-.oqm-heatmap-dow {
-  text-align: center;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-faint);
-  padding-bottom: 2px;
+  grid-template-columns: repeat(7, 12px);
+  grid-auto-rows: 12px;
+  gap: 3px;
 }
 
 .oqm-heatmap-blank {
@@ -335,36 +323,30 @@
 }
 
 .oqm-heatmap-day {
-  aspect-ratio: 1;
-  min-height: 0;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-s);
-  background: var(--background-primary-alt, var(--background-secondary));
-  color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 12px;
+  height: 12px;
   padding: 0;
-  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+  border: 0;
+  border-radius: 3px;
+  background: var(--background-modifier-border);
+  cursor: pointer;
+  transition: background-color 160ms ease, outline-color 160ms ease;
 }
 
 .oqm-heatmap-day:hover {
-  border-color: var(--interactive-accent-hover);
-  color: var(--text-normal);
+  outline: 1px solid var(--interactive-accent-hover);
 }
 
 .oqm-heatmap-day.is-selected {
-  border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px var(--interactive-accent);
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 
-.oqm-heatmap-level-0 { background: var(--background-primary-alt, var(--background-secondary)); color: var(--text-faint); }
-.oqm-heatmap-level-1 { background: color-mix(in srgb, var(--interactive-accent) 24%, var(--background-primary)); color: var(--text-muted); }
-.oqm-heatmap-level-2 { background: color-mix(in srgb, var(--interactive-accent) 44%, var(--background-primary)); color: var(--text-muted); }
-.oqm-heatmap-level-3 { background: color-mix(in srgb, var(--interactive-accent) 64%, var(--background-primary)); color: var(--text-on-accent); }
-.oqm-heatmap-level-4 { background: color-mix(in srgb, var(--interactive-accent) 84%, var(--background-primary)); color: var(--text-on-accent); font-weight: 600; }
+.oqm-heatmap-level-0 { background: var(--background-modifier-border); }
+.oqm-heatmap-level-1 { background: color-mix(in srgb, var(--interactive-accent) 30%, var(--background-modifier-border)); }
+.oqm-heatmap-level-2 { background: color-mix(in srgb, var(--interactive-accent) 50%, var(--background-modifier-border)); }
+.oqm-heatmap-level-3 { background: color-mix(in srgb, var(--interactive-accent) 72%, var(--background-modifier-border)); }
+.oqm-heatmap-level-4 { background: var(--interactive-accent); }
 
 /* ---------- Shared focus ---------- */
 

@@ -43,7 +43,6 @@ export function renderOverview(root: HTMLElement, state: OverviewState, callback
   const layout = appendDiv(root, 'oqm-layout');
   renderSidebar(appendDiv(layout, 'oqm-sidebar'), state, callbacks);
   renderMain(appendDiv(layout, 'oqm-main'), state, callbacks);
-  renderHeatmap(appendDiv(layout, 'oqm-heatmap'), state.heatmap, state.selectedDate, callbacks);
 }
 
 function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks): void {
@@ -89,6 +88,8 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
       button.onclick = () => callbacks.onFilterChange({ tag });
     }
   }
+
+  renderHeatmap(container, state.heatmap, state.selectedDate, callbacks);
 }
 
 function renderMain(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks): void {
@@ -172,35 +173,58 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
 function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], selectedDate: string, callbacks: OverviewCallbacks): void {
   const counts = new Map<string, number>();
   for (const day of heatmap) counts.set(day.date, day.count);
-
-  const [year, month] = selectedDate.split('-').map((part) => Number(part));
-  const firstWeekday = new Date(year, month - 1, 1).getDay(); // 0 = Sunday
-  const daysInMonth = new Date(year, month, 0).getDate();
   const max = Math.max(1, ...heatmap.map((day) => day.count));
 
-  const header = appendDiv(container, 'oqm-heatmap-header');
-  appendEl(header, 'span', 'oqm-heatmap-month', `${year}年${month}月`);
-  appendEl(header, 'span', 'oqm-heatmap-hint', '点击日期查看当天');
+  appendDiv(container, 'oqm-section-label', '近 3 个月活动');
 
-  const grid = appendDiv(container, 'oqm-heatmap-grid');
-  for (const weekday of ['日', '一', '二', '三', '四', '五', '六']) {
-    appendDiv(grid, 'oqm-heatmap-dow', weekday);
+  const [year, month] = selectedDate.split('-').map((part) => Number(part));
+  // Current month plus the two previous, oldest first so the column reads top → bottom.
+  const months: Array<readonly [number, number]> = [-2, -1, 0].map((delta) => monthOffset(year, month, delta));
+  for (const [blockYear, blockMonth] of months) {
+    renderMonthBlock(container, blockYear, blockMonth, counts, max, selectedDate, callbacks);
   }
+}
+
+function renderMonthBlock(
+  container: HTMLElement,
+  year: number,
+  month: number,
+  counts: Map<string, number>,
+  max: number,
+  selectedDate: string,
+  callbacks: OverviewCallbacks,
+): void {
+  const block = appendDiv(container, 'oqm-heatmap-month-block');
+  appendEl(block, 'div', 'oqm-heatmap-month-label', `${year}年${month}月`);
+
+  const grid = appendDiv(block, 'oqm-heatmap-month-grid');
+  const firstWeekday = new Date(year, month - 1, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(year, month, 0).getDate();
+
   for (let blank = 0; blank < firstWeekday; blank += 1) {
     appendDiv(grid, 'oqm-heatmap-blank');
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateStr = `${year}-${pad2(month)}-${pad2(day)}`;
     const count = counts.get(dateStr) ?? 0;
     const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));
     const isSelected = dateStr === selectedDate;
     const button = appendEl(grid, 'button', `oqm-heatmap-day oqm-heatmap-level-${level}${isSelected ? ' is-selected' : ''}`) as HTMLButtonElement;
     button.type = 'button';
-    button.textContent = String(day);
-    button.title = `${dateStr}: ${count} 条`;
+    button.title = `${dateStr}：${count} 条`;
+    button.setAttribute('aria-label', `${dateStr}，${count} 条记录`);
     button.onclick = () => callbacks.onSelectDate(dateStr);
   }
+}
+
+function monthOffset(year: number, month: number, delta: number): readonly [number, number] {
+  const normalized = new Date(year, month - 1 + delta, 1);
+  return [normalized.getFullYear(), normalized.getMonth() + 1];
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
 }
 
 function typeLabel(type: QuickMemoType): string {

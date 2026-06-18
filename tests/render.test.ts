@@ -35,12 +35,13 @@ describe('renderOverview', () => {
     expect(root.textContent).toContain('idea #a');
     expect(root.textContent).toContain('#a');
     expect(root.querySelector<HTMLTextAreaElement>('.oqm-input')?.placeholder).toContain('Markdown');
-    // Heatmap renders a full current-month calendar (June 2026 = 30 days).
-    expect(root.querySelector('.oqm-heatmap-month')?.textContent).toBe('2026年6月');
+    // Heatmap lives inside the sidebar and shows three months (April + May + June 2026).
+    const labels = Array.from(root.querySelectorAll('.oqm-heatmap-month-label')).map((el) => el.textContent);
+    expect(labels).toEqual(['2026年4月', '2026年5月', '2026年6月']);
     const dayCells = root.querySelectorAll('.oqm-heatmap-day');
-    expect(dayCells).toHaveLength(30);
-    const recordDay = Array.from(dayCells).find((cell) => cell.textContent === '18');
-    // Single record whose count equals the max -> highest intensity level.
+    expect(dayCells).toHaveLength(30 + 31 + 30); // Apr + May + Jun
+    // Squares carry no date number; locate the recorded day by its tooltip.
+    const recordDay = Array.from(dayCells).find((cell) => cell.getAttribute('title') === '2026-06-18：1 条');
     expect(recordDay?.classList.contains('oqm-heatmap-level-4')).toBe(true);
     expect(recordDay?.classList.contains('is-selected')).toBe(true);
   });
@@ -58,7 +59,7 @@ describe('renderOverview', () => {
       filters: {},
     }, callbacks);
 
-    const day15 = Array.from(root.querySelectorAll('.oqm-heatmap-day')).find((cell) => cell.textContent === '15') as HTMLButtonElement;
+    const day15 = Array.from(root.querySelectorAll('.oqm-heatmap-day')).find((cell) => cell.getAttribute('title')?.startsWith('2026-06-15')) as HTMLButtonElement;
     day15.click();
     expect(callbacks.onSelectDate).toHaveBeenCalledWith('2026-06-15');
   });
