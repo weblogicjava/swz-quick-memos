@@ -1,0 +1,10 @@
+{
+  "id": "obsidian-quick-memo",
+  "name": "Quick Memo",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Markdown-native daily quick records, flash thoughts, todos, history, filters, and heatmap.",
+  "author": "songwz",
+  "authorUrl": "",
+  "isDesktopOnly": false
+}

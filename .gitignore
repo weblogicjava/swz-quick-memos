@@ -1,0 +1,8 @@
+node_modules/
+dist/
+main.js
+*.map
+coverage/
+.DS_Store
+.obsidian/
+.vault-test/
