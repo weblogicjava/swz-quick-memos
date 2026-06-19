@@ -2,7 +2,8 @@
    Uses Obsidian theme variables only so it follows light/dark themes. */
 
 .oqm-root {
-  height: 100%;
+  --oqm-heatmap-green-rgb: var(--color-green-rgb, 64, 160, 67);
+  min-height: 100%;
   color: var(--text-normal);
   background: var(--background-primary);
   font-size: var(--font-ui-small);
@@ -22,13 +23,32 @@
   font-size: var(--font-ui-small);
 }
 
+.oqm-fatal-error {
+  margin: var(--size-4-4);
+  padding: var(--size-4-4);
+  border: 1px solid var(--background-modifier-error, var(--background-modifier-border));
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+.oqm-fatal-error h3 {
+  margin: 0 0 var(--size-4-2);
+  color: var(--text-error, var(--text-normal));
+}
+
+.oqm-fatal-error p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
 /* ---------- Layout ---------- */
 
 .oqm-layout {
   display: grid;
   grid-template-columns: minmax(232px, 280px) minmax(380px, 1fr);
+  align-items: start;
   gap: var(--size-4-4);
-  height: 100%;
   padding: var(--size-4-4);
 }
 
@@ -43,20 +63,7 @@
   background: var(--background-primary);
 }
 
-.oqm-sidebar {
-  overflow: auto;
-}
-
-.oqm-main {
-  overflow: hidden;
-}
-
-.oqm-main > .oqm-record-list {
-  overflow-y: auto;
-  padding-right: var(--size-2-2);
-  flex: 1 1 auto;
-  min-height: 0;
-}
+/* No inner scroll: the record list stacks on the page and the whole view scrolls. */
 
 /* ---------- Sidebar ---------- */
 
@@ -153,6 +160,13 @@
   color: var(--text-normal);
 }
 
+.oqm-tags button.oqm-tag-selected {
+  border-color: var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-weight: 600;
+}
+
 /* ---------- Composer (stacked: type, textarea, save on separate rows) ---------- */
 
 .oqm-composer {
@@ -173,7 +187,7 @@
 }
 
 .oqm-input {
-  min-height: 96px;
+  min-height: 140px;
   resize: vertical;
   line-height: var(--line-height-normal);
   background: var(--background-primary);
@@ -256,20 +270,24 @@
   position: absolute;
   top: 32px;
   right: 6px;
-  z-index: 20;
-  min-width: 140px;
-  padding: 4px;
+  z-index: 30;
+  min-width: 168px;
+  padding: var(--size-2-2);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
   background: var(--background-primary);
-  box-shadow: 0 6px 20px var(--background-modifier-box-shadow);
+  box-shadow: 0 8px 24px var(--background-modifier-box-shadow);
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
+/* Items are separated by a small gap so each rounded pill reads as its own
+   touch target — no flush rounded corners carving notches into each other. */
 .oqm-record-menu-item {
-  min-height: 32px;
-  padding: 0 12px;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 var(--size-4-3);
   border: 0;
   border-radius: var(--radius-s);
   background: transparent;
@@ -280,12 +298,24 @@
   transition: background-color 160ms ease, color 160ms ease;
 }
 
-.oqm-record-menu-item:hover {
+.oqm-record-menu-item:hover,
+.oqm-record-menu-item:focus-visible {
   background: var(--background-modifier-hover);
+}
+
+.oqm-record-menu-divider {
+  height: 1px;
+  margin: 2px 0;
+  background: var(--background-modifier-border);
 }
 
 .oqm-record-menu-item-danger {
   color: var(--text-error, #e05d5d);
+}
+
+.oqm-record-menu-item-danger:hover,
+.oqm-record-menu-item-danger:focus-visible {
+  background: var(--background-modifier-error-hover, var(--background-modifier-hover));
 }
 
 .oqm-record-flash { border-left-color: var(--color-yellow, var(--interactive-accent)); }
@@ -310,11 +340,118 @@
   color: var(--text-normal);
 }
 
+/* ---------- Record body: checkbox + rendered markdown ---------- */
+
+.oqm-record-body {
+  display: flex;
+  gap: var(--size-4-2);
+  align-items: flex-start;
+}
+
+.oqm-record-body > .oqm-record-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Custom square check (native rendering looked like a radio in some themes). */
+.oqm-record-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  border: 1.5px solid var(--background-modifier-border-hover, var(--background-modifier-border));
+  border-radius: 3px;
+  background: var(--background-primary);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.oqm-record-checkbox:hover {
+  border-color: var(--interactive-accent);
+}
+
+.oqm-record-checkbox:checked {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+}
+
+.oqm-record-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.oqm-record-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.oqm-record.is-done .oqm-record-content {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
 .oqm-record-content {
-  white-space: pre-wrap;
   line-height: var(--line-height-normal);
   color: var(--text-normal);
   max-width: 75ch;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.oqm-record-content > :first-child { margin-top: 0; }
+.oqm-record-content > :last-child { margin-bottom: 0; }
+.oqm-record-content p { margin: 0 0 var(--size-4-2); }
+.oqm-record-content ul,
+.oqm-record-content ol { margin: 0 0 var(--size-4-2); padding-left: 1.6em; }
+.oqm-record-content li { margin: 2px 0; }
+.oqm-record-content li > ul,
+.oqm-record-content li > ol { margin: 2px 0; }
+.oqm-record-content code {
+  font-family: var(--font-monospace);
+  background: var(--background-secondary-alt);
+  padding: 1px 5px;
+  border-radius: var(--radius-s);
+  font-size: 0.9em;
+}
+.oqm-record-content pre {
+  margin: 0 0 var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  background: var(--background-secondary-alt);
+  border-radius: var(--radius-m);
+  overflow-x: auto;
+}
+.oqm-record-content pre code { background: transparent; padding: 0; font-size: 0.9em; }
+.oqm-record-content blockquote {
+  margin: 0 0 var(--size-4-2);
+  padding: 0 var(--size-4-3);
+  border-left: 3px solid var(--background-modifier-border);
+  color: var(--text-muted);
+}
+.oqm-record-content h1,
+.oqm-record-content h2,
+.oqm-record-content h3,
+.oqm-record-content h4 {
+  margin: var(--size-4-3) 0 var(--size-4-2);
+  line-height: var(--line-height-tight);
+}
+.oqm-record-content a { color: var(--text-accent); text-decoration: none; }
+.oqm-record-content a:hover { text-decoration: underline; }
+.oqm-record-content img { max-width: 100%; border-radius: var(--radius-s); }
+.oqm-record-content input[type='checkbox'] { margin-right: 6px; }
+.oqm-record-content hr {
+  border: 0;
+  border-top: 1px solid var(--background-modifier-border);
+  margin: var(--size-4-2) 0;
 }
 
 .oqm-record-actions {
@@ -345,7 +482,7 @@
 }
 
 .oqm-edit-input {
-  min-height: 96px;
+  min-height: 140px;
   resize: vertical;
 }
 
@@ -368,12 +505,17 @@
 }
 
 .oqm-heatmap-day {
+  appearance: none;
+  -webkit-appearance: none;
   width: 12px;
   height: 12px;
+  min-width: 12px;
+  min-height: 12px;
   padding: 0;
   border: 0;
   border-radius: 3px;
   background: var(--background-modifier-border);
+  box-shadow: none;
   cursor: pointer;
   transition: background-color 160ms ease, outline-color 160ms ease;
 }
@@ -382,21 +524,23 @@
   outline: 1px solid var(--interactive-accent-hover);
 }
 
-.oqm-heatmap-day.is-selected {
+.oqm-heatmap-day.oqm-heatmap-selected {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }
 
-.oqm-heatmap-level-0 { background: var(--background-modifier-border); }
-.oqm-heatmap-level-1 { background: color-mix(in srgb, var(--interactive-accent) 30%, var(--background-modifier-border)); }
-.oqm-heatmap-level-2 { background: color-mix(in srgb, var(--interactive-accent) 50%, var(--background-modifier-border)); }
-.oqm-heatmap-level-3 { background: color-mix(in srgb, var(--interactive-accent) 72%, var(--background-modifier-border)); }
-.oqm-heatmap-level-4 { background: var(--interactive-accent); }
+.oqm-heatmap-day.oqm-heatmap-level-0 { background: var(--background-modifier-border) !important; background-color: var(--background-modifier-border) !important; }
+.oqm-heatmap-day.oqm-heatmap-level-1 { background: rgba(var(--oqm-heatmap-green-rgb), 0.35) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.35) !important; }
+.oqm-heatmap-day.oqm-heatmap-level-2 { background: rgba(var(--oqm-heatmap-green-rgb), 0.55) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.55) !important; }
+.oqm-heatmap-day.oqm-heatmap-level-3 { background: rgba(var(--oqm-heatmap-green-rgb), 0.78) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.78) !important; }
+.oqm-heatmap-day.oqm-heatmap-level-4 { background: rgb(var(--oqm-heatmap-green-rgb)) !important; background-color: rgb(var(--oqm-heatmap-green-rgb)) !important; }
 
 /* ---------- Shared focus ---------- */
 
 .oqm-tags button:focus-visible,
 .oqm-record-actions button:focus-visible,
+.oqm-record-menu-trigger:focus-visible,
+.oqm-record-checkbox:focus-visible,
 .oqm-save:focus-visible,
 .oqm-heatmap-day:focus-visible,
 .oqm-input:focus-visible,
@@ -414,14 +558,6 @@
 @media (max-width: 900px) {
   .oqm-layout {
     grid-template-columns: 1fr;
-    height: auto;
-    min-height: 100%;
-  }
-
-  .oqm-sidebar,
-  .oqm-main,
-  .oqm-heatmap {
-    overflow: visible;
   }
 }
 

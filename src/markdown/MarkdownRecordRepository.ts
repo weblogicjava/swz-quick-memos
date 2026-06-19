@@ -3,6 +3,7 @@ import type { VaultLike } from '../test/fakeVault';
 import type { DailyNoteResolver } from '../daily-notes/DailyNoteResolver';
 import type { QuickMemoParser } from './QuickMemoParser';
 import { createBlockId } from './id';
+import { dateFromPath } from '../daily-notes/path';
 
 export class MarkdownRecordRepository {
   constructor(
@@ -59,6 +60,34 @@ export class MarkdownRecordRepository {
     await this.replaceLines(located.filePath, located.record.lineStart, located.record.lineEnd, '');
   }
 
+  /** Remove `tag` (e.g. "#project") from every record that uses it, rewriting each
+   *  affected Daily Note in place. Returns the number of records changed. A rebuild
+   *  afterwards also drops any stale records left over from deleted files. */
+  async removeTag(tag: string): Promise<number> {
+    let count = 0;
+    for (const filePath of this.vault.listMarkdownFiles()) {
+      let content = await this.vault.read(filePath);
+      const date = dateFromPath(filePath);
+      const records = this.parser.parseFile(filePath, date, content).records.filter((record) => record.tags.includes(tag));
+      if (records.length === 0) continue;
+      // Replace bottom-up so earlier line numbers stay valid as we mutate the text.
+      for (const record of records.sort((a, b) => b.lineStart - a.lineStart)) {
+        const replacement = this.parser.serializeRecord({
+          date: record.date,
+          time: record.time,
+          type: record.type,
+          content: stripTag(record.content, tag),
+          body: record.body ? stripTag(record.body, tag) : undefined,
+          completed: record.completed,
+        }, record.id);
+        content = replaceRange(content, record.lineStart, record.lineEnd, replacement);
+        count += 1;
+      }
+      await this.vault.modify(filePath, content);
+    }
+    return count;
+  }
+
   async backfillMissingIds(date: string): Promise<number> {
     const resolution = await this.resolver.resolve(date);
     if (!this.vault.exists(resolution.filePath)) return 0;
@@ -88,11 +117,7 @@ export class MarkdownRecordRepository {
 
   private async replaceLines(filePath: string, lineStart: number, lineEnd: number, replacement: string): Promise<void> {
     const content = await this.vault.read(filePath);
-    const lines = content.split('\n');
-    const before = lines.slice(0, lineStart - 1);
-    const after = lines.slice(lineEnd);
-    const middle = replacement ? replacement.split('\n') : [];
-    await this.vault.modify(filePath, [...before, ...middle, ...after].join('\n'));
+    await this.vault.modify(filePath, replaceRange(content, lineStart, lineEnd, replacement));
   }
 }
 
@@ -126,11 +151,24 @@ function insertIntoSection(markdown: string, heading: string, serialized: string
   return [...before, ...section, ...after].join('\n');
 }
 
-function dateFromPath(path: string): string {
-  const match = path.match(/([0-9]{4})[-\/]([0-9]{2})[-\/]([0-9]{2})\.md$/u);
-  return match ? `${match[1]}-${match[2]}-${match[3]}` : '1970-01-01';
-}
-
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+/** Replace lines [lineStart, lineEnd] (1-indexed, inclusive) of `markdown` with `replacement`. */
+function replaceRange(markdown: string, lineStart: number, lineEnd: number, replacement: string): string {
+  const lines = markdown.split('\n');
+  const before = lines.slice(0, lineStart - 1);
+  const after = lines.slice(lineEnd);
+  const middle = replacement ? replacement.split('\n') : [];
+  return [...before, ...middle, ...after].join('\n');
+}
+
+/** Strip a single `#tag` token (and tidy the surrounding spacing) from `text`. */
+function stripTag(text: string, tag: string): string {
+  const escaped = escapeRegExp(tag);
+  return text
+    .replace(new RegExp(`(^|\\s)${escaped}(?=$|\\s)`, 'gu'), '$1')
+    .replace(/ {2,}/gu, ' ')
+    .trim();
 }

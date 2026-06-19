@@ -1,6 +1,7 @@
 import type { HeatmapDay, IndexQuery, ParseWarning, QuickMemoRecord } from '../types';
 import type { VaultLike } from '../test/fakeVault';
 import type { QuickMemoParser } from '../markdown/QuickMemoParser';
+import { dateFromPath } from '../daily-notes/path';
 
 export class IndexService {
   private records: QuickMemoRecord[] = [];
@@ -90,9 +91,4 @@ function sortRecords(records: QuickMemoRecord[], direction: 'asc' | 'desc'): Qui
     const result = `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`);
     return direction === 'asc' ? result : -result;
   });
-}
-
-function dateFromPath(path: string): string {
-  const match = path.match(/([0-9]{4})[-\/]([0-9]{2})[-\/]([0-9]{2})\.md$/u);
-  return match ? `${match[1]}-${match[2]}-${match[3]}` : '1970-01-01';
 }

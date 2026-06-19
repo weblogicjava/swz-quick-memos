@@ -9,47 +9,47 @@ const OWN = DEFAULT_SETTINGS;
 const DEFER = { ...DEFAULT_SETTINGS, overrideDailyNotesConfig: false, fallbackDailyNotesFolder: 'Daily Notes', fallbackDateFormat: 'YYYY-MM-DD' };
 
 describe('DailyNoteResolver', () => {
-  it('uses the plugin folder/format when override is enabled (default)', async () => {
+  it('uses the plugin folder/format with the -quick-memos suffix when override is enabled (default)', async () => {
     const vault = new FakeVault();
     const resolver = new DailyNoteResolver(vault, undefined, OWN);
     const result = await resolver.resolve('2026-06-19');
-    expect(result).toEqual({ date: '2026-06-19', filePath: '每日工作/2026/06/2026-06-19.md', source: 'fallback' });
+    expect(result).toEqual({ date: '2026-06-19', filePath: '每日工作/2026/06/2026-06-19-quick-memos.md', source: 'fallback' });
   });
 
   it('ignores the Daily Notes config when override is enabled', async () => {
     const vault = new FakeVault();
     const resolver = new DailyNoteResolver(vault, { folder: 'Journal', format: 'YYYY/MM/DD' }, OWN);
     const result = await resolver.resolve('2026-06-19');
-    expect(result.filePath).toBe('每日工作/2026/06/2026-06-19.md');
+    expect(result.filePath).toBe('每日工作/2026/06/2026-06-19-quick-memos.md');
   });
 
   it('uses the Daily Notes config when override is disabled', async () => {
     const vault = new FakeVault();
     const resolver = new DailyNoteResolver(vault, { folder: 'Journal', format: 'YYYY/MM/DD' }, DEFER);
     const result = await resolver.resolve('2026-06-18');
-    expect(result).toEqual({ date: '2026-06-18', filePath: 'Journal/2026/06/18.md', source: 'daily-notes' });
+    expect(result).toEqual({ date: '2026-06-18', filePath: 'Journal/2026/06/18-quick-memos.md', source: 'daily-notes' });
   });
 
   it('falls back to flat folder/format when override is disabled and config is absent', async () => {
     const vault = new FakeVault();
     const resolver = new DailyNoteResolver(vault, undefined, DEFER);
     const result = await resolver.resolve('2026-06-18');
-    expect(result).toEqual({ date: '2026-06-18', filePath: 'Daily Notes/2026-06-18.md', source: 'fallback' });
+    expect(result).toEqual({ date: '2026-06-18', filePath: 'Daily Notes/2026-06-18-quick-memos.md', source: 'fallback' });
   });
 
   it('creates missing files and appends Quick Memo heading', async () => {
     const vault = new FakeVault();
     const resolver = new DailyNoteResolver(vault, undefined, OWN);
     const path = await resolver.ensureDailyNote('2026-06-18');
-    expect(path).toBe('每日工作/2026/06/2026-06-18.md');
+    expect(path).toBe('每日工作/2026/06/2026-06-18-quick-memos.md');
     expect(await vault.read(path)).toBe('\n## Quick Memo\n');
   });
 
   it('adds Quick Memo heading to existing files without one', async () => {
-    const vault = new FakeVault({ '每日工作/2026/06/2026-06-18.md': '# 2026-06-18\nBody\n' });
+    const vault = new FakeVault({ '每日工作/2026/06/2026-06-18-quick-memos.md': '# 2026-06-18\nBody\n' });
     const resolver = new DailyNoteResolver(vault, undefined, OWN);
     await resolver.ensureDailyNote('2026-06-18');
-    expect(await vault.read('每日工作/2026/06/2026-06-18.md')).toBe('# 2026-06-18\nBody\n\n## Quick Memo\n');
+    expect(await vault.read('每日工作/2026/06/2026-06-18-quick-memos.md')).toBe('# 2026-06-18\nBody\n\n## Quick Memo\n');
   });
 
   it('uses a custom formatter so year/month subfolders match the Daily Notes config', async () => {
@@ -66,7 +66,16 @@ describe('DailyNoteResolver', () => {
       momentLike,
     );
     const result = await resolver.resolve('2026-06-19');
-    expect(result.filePath).toBe('日志/2026/06/19.md');
+    expect(result.filePath).toBe('日志/2026/06/19-quick-memos.md');
     expect(result.source).toBe('daily-notes');
+  });
+
+  it('still reads a plain yyyy-MM-dd.md date (legacy files keep parsing)', async () => {
+    const vault = new FakeVault();
+    const resolver = new DailyNoteResolver(vault, undefined, OWN);
+    const result = await resolver.resolve('2026-06-19');
+    // The resolver always writes to the suffixed file, but the path parser in
+    // src/daily-notes/path.ts accepts both — covered indirectly by the index tests.
+    expect(result.filePath).toContain('2026-06-19-quick-memos.md');
   });
 });

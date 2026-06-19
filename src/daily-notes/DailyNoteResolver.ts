@@ -1,6 +1,7 @@
 import type { DateFileResolution, QuickMemoSettings } from '../types';
 import type { VaultLike } from '../test/fakeVault';
 import type { DailyNotesConfig } from './obsidianInternal';
+import { QUICK_MEMO_FILENAME_SUFFIX } from './path';
 
 export type DateFormatFn = (date: string, format: string) => string;
 
@@ -21,7 +22,9 @@ export class DailyNoteResolver {
     const hasDailyNotesConfig = Boolean(config?.folder || config?.format);
     const folder = trimSlashes(hasDailyNotesConfig ? config?.folder ?? '' : this.settings.fallbackDailyNotesFolder);
     const format = hasDailyNotesConfig ? config?.format ?? this.settings.fallbackDateFormat : this.settings.fallbackDateFormat;
-    const relative = `${this.formatFn(date, format)}.md`;
+    // Keep Quick Memo in its own files (`-quick-memos.md`) so the user's regular
+    // daily notes are never written into.
+    const relative = `${this.formatFn(date, format)}${QUICK_MEMO_FILENAME_SUFFIX}.md`;
     return {
       date,
       filePath: folder ? `${folder}/${relative}` : relative,

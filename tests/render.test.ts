@@ -18,6 +18,7 @@ describe('renderOverview', () => {
       onOpenSource: vi.fn(),
       onFilterChange: vi.fn(),
       onToggleMenu: vi.fn(),
+      onTagContext: vi.fn(),
     };
 
     renderOverview(root, {
@@ -45,7 +46,7 @@ describe('renderOverview', () => {
     expect(dayCells).toHaveLength(90); // 90-day window ending 2026-06-18
     const recordDay = Array.from(dayCells).find((cell) => cell.getAttribute('title') === '2026-06-18：1 条');
     expect(recordDay?.classList.contains('oqm-heatmap-level-4')).toBe(true);
-    expect(recordDay?.classList.contains('is-selected')).toBe(true);
+    expect(recordDay?.classList.contains('oqm-heatmap-selected')).toBe(true);
   });
 
   it('calls onSelectDate when a heatmap day is clicked', () => {
@@ -114,6 +115,28 @@ describe('renderOverview', () => {
     expect(callbacks.onToggleTodo).toHaveBeenCalled();
     items[4].click(); // 删除
     expect(callbacks.onDelete).toHaveBeenCalled();
+  });
+
+  it('toggles an already-selected tag off when clicked again', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [['#a', 2]],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { tag: '#a' },
+    }, callbacks);
+
+    const tagButton = root.querySelector<HTMLButtonElement>('.oqm-tags button')!;
+    expect(tagButton.classList.contains('oqm-tag-selected')).toBe(true);
+    expect(tagButton.getAttribute('aria-pressed')).toBe('true');
+    tagButton.click();
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ tag: undefined });
   });
 
   it('offers all six type filter options including todo status composites', () => {
@@ -212,6 +235,7 @@ function makeCallbacks() {
     onOpenSource: vi.fn(),
     onFilterChange: vi.fn(),
     onToggleMenu: vi.fn(),
+    onTagContext: vi.fn(),
   };
 }
 

@@ -1,6 +1,18 @@
 import type { HeatmapDay, QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
 import type { TodoStatusFilter, TypeFilter, ViewFilters } from './viewState';
 
+/** Markdown render bridge — render.ts stays free of Obsidian. The view injects
+ *  the real MarkdownRenderer; tests fall back to the plain-text default. */
+export interface MarkdownApi {
+  render(source: string, el: HTMLElement): void;
+}
+
+const TEXT_MARKDOWN: MarkdownApi = {
+  render: (source, el) => {
+    el.textContent = source;
+  },
+};
+
 export interface OverviewState {
   settings: QuickMemoSettings;
   records: QuickMemoRecord[];
@@ -11,6 +23,7 @@ export interface OverviewState {
   editingRecordId?: string;
   openMenuRecordId?: string;
   filters: ViewFilters;
+  markdown?: MarkdownApi;
 }
 
 export interface OverviewCallbacks {
@@ -25,6 +38,7 @@ export interface OverviewCallbacks {
   onOpenSource(record: QuickMemoRecord): void;
   onFilterChange(filters: Partial<ViewFilters>): void;
   onToggleMenu(recordId: string): void;
+  onTagContext(tag: string, event: MouseEvent): void;
 }
 
 /** Type filter option values, including composite todo-status filters. */
@@ -43,9 +57,10 @@ export function renderOverview(root: HTMLElement, state: OverviewState, callback
   root.innerHTML = '';
   root.classList.add('oqm-root');
 
+  const markdown = state.markdown ?? TEXT_MARKDOWN;
   const layout = appendDiv(root, 'oqm-layout');
   renderSidebar(appendDiv(layout, 'oqm-sidebar'), state, callbacks);
-  renderMain(appendDiv(layout, 'oqm-main'), state, callbacks);
+  renderMain(appendDiv(layout, 'oqm-main'), state, callbacks, markdown);
 }
 
 function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks): void {
@@ -82,21 +97,42 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
 
   const search = appendEl(container, 'input', 'oqm-search') as HTMLInputElement;
   search.type = 'search';
-  search.placeholder = '关键词搜索';
+  search.placeholder = '关键词搜索（回车搜索）';
   search.value = state.filters.text ?? '';
-  search.oninput = () => callbacks.onFilterChange({ text: search.value });
+  // No search while typing: it interrupts IME/Chinese composition and rebuilds the
+  // DOM per keystroke. Search runs on Enter — but not the Enter that confirms an
+  // IME candidate — and on blur (deferred so the click that stole focus completes).
+  const runSearch = (): void => {
+    callbacks.onFilterChange({ text: search.value });
+  };
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) {
+      event.preventDefault();
+      runSearch();
+    }
+  });
+  search.addEventListener('blur', () => {
+    window.setTimeout(runSearch, 0);
+  });
 
   if (state.tags.length > 0) {
     appendDiv(container, 'oqm-section-label', '标签');
     const tags = appendDiv(container, 'oqm-tags');
     for (const [tag, count] of state.tags) {
-      const button = appendEl(tags, 'button', '', `${tag} ${count}`) as HTMLButtonElement;
-      button.onclick = () => callbacks.onFilterChange({ tag });
+      const selected = state.filters.tag === tag;
+      const button = appendEl(tags, 'button', selected ? 'oqm-tag-selected' : '', `${tag} ${count}`) as HTMLButtonElement;
+      button.setAttribute('aria-pressed', String(selected));
+      button.title = selected ? '再次点击取消标签筛选' : '按此标签筛选';
+      button.onclick = () => callbacks.onFilterChange({ tag: selected ? undefined : tag });
+      button.oncontextmenu = (event: MouseEvent) => {
+        event.preventDefault();
+        callbacks.onTagContext(tag, event);
+      };
     }
   }
 }
 
-function renderMain(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks): void {
+function renderMain(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks, markdown: MarkdownApi): void {
   const composer = appendDiv(container, 'oqm-composer');
   const type = appendEl(composer, 'select', 'oqm-type') as HTMLSelectElement;
   for (const [value, label] of TYPE_OPTIONS) {
@@ -104,6 +140,8 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
   }
   type.value = state.settings.defaultRecordType;
 
+  // Plain markdown source editor. (The cards below render the markdown; the
+  // composer itself stays a source textarea.)
   const input = appendEl(composer, 'textarea', 'oqm-input') as HTMLTextAreaElement;
   input.placeholder = '输入 Markdown，Cmd/Ctrl + Enter 保存';
 
@@ -112,6 +150,7 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
     const content = input.value.trim();
     if (!content) return;
     callbacks.onSave({ type: type.value as QuickMemoType, content });
+    input.value = '';
   };
   save.onclick = submit;
   input.onkeydown = (event: KeyboardEvent) => {
@@ -127,12 +166,12 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
 
   for (const record of state.records) {
     const key = recordKey(record);
-    renderRecord(list, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks);
+    renderRecord(list, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks, markdown);
   }
 }
 
-function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boolean, menuOpen: boolean, callbacks: OverviewCallbacks): void {
-  const card = appendDiv(list, `oqm-record oqm-record-${record.type}`);
+function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boolean, menuOpen: boolean, callbacks: OverviewCallbacks, markdown: MarkdownApi): void {
+  const card = appendDiv(list, `oqm-record oqm-record-${record.type}${record.completed ? ' is-done' : ''}`);
 
   // Top-right "more" trigger; actions live in a dropdown rather than a bottom row.
   const trigger = appendEl(card, 'button', 'oqm-record-menu-trigger') as HTMLButtonElement;
@@ -158,6 +197,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
 
     const editor = appendEl(card, 'textarea', 'oqm-edit-input') as HTMLTextAreaElement;
     editor.value = record.body ? `${record.content}\n${record.body}` : record.content;
+    setTimeout(() => editor.focus(), 0);
 
     const editActions = appendDiv(card, 'oqm-record-actions');
     (appendEl(editActions, 'button', '', '保存') as HTMLButtonElement).onclick = () => {
@@ -172,7 +212,22 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
     return;
   }
 
-  appendDiv(card, 'oqm-record-content', record.body ? `${record.content}\n${record.body}` : record.content);
+  // Rendered markdown content. Todo records get a checkbox that toggles the
+  // record's completion, which syncs the `- [ ]`/`- [x]` marker in the file.
+  const body = appendDiv(card, 'oqm-record-body');
+  if (record.type === 'todo') {
+    const checkbox = appendEl(body, 'input', 'oqm-record-checkbox') as HTMLInputElement;
+    checkbox.type = 'checkbox';
+    checkbox.checked = Boolean(record.completed);
+    checkbox.setAttribute('aria-label', record.completed ? '标记为未完成' : '标记为完成');
+    if (record.id) {
+      checkbox.onchange = () => callbacks.onToggleTodo(record);
+    } else {
+      checkbox.disabled = true;
+    }
+  }
+  const contentEl = appendDiv(body, 'oqm-record-content');
+  markdown.render(record.body ? `${record.content}\n${record.body}` : record.content, contentEl);
 
   if (menuOpen) {
     const menu = appendDiv(card, 'oqm-record-menu');
@@ -182,6 +237,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
     addMenuItem(menu, '编辑', () => callbacks.onEdit(record));
     addMenuItem(menu, '复制块链接', () => callbacks.onCopyBlock(record));
     addMenuItem(menu, '打开源文件', () => callbacks.onOpenSource(record));
+    appendDiv(menu, 'oqm-record-menu-divider');
     addMenuItem(menu, '删除', () => callbacks.onDelete(record), 'oqm-record-menu-item-danger');
   }
 }
@@ -217,18 +273,13 @@ function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate:
     const count = counts.get(dateStr) ?? 0;
     const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));
     const isSelected = dateStr === selectedDate;
-    const button = appendEl(grid, 'button', `oqm-heatmap-day oqm-heatmap-level-${level}${isSelected ? ' is-selected' : ''}`) as HTMLButtonElement;
+    const button = appendEl(grid, 'button', `oqm-heatmap-day oqm-heatmap-level-${level}${isSelected ? ' oqm-heatmap-selected' : ''}`) as HTMLButtonElement;
     button.type = 'button';
     button.title = `${dateStr}：${count} 条`;
     button.setAttribute('aria-label', `${dateStr}，${count} 条记录`);
     button.onclick = () => callbacks.onSelectDate(dateStr);
     cursor.setDate(cursor.getDate() + 1);
   }
-}
-
-function parseDate(value: string): Date {
-  const [year, month, day] = value.split('-').map((part) => Number(part));
-  return new Date(year, month - 1, day);
 }
 
 function formatDay(date: Date): string {

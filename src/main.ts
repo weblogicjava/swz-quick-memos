@@ -94,6 +94,16 @@ export default class QuickMemoPlugin extends Plugin {
     this.registerEvent(this.app.vault.on('modify', () => {
       void this.index.refreshChangedFiles();
     }));
+    // New files add records; deleted files must drop theirs (a delta refresh can't
+    // detect deletions), so rebuild + refresh the view to keep tags/heatmap accurate.
+    this.registerEvent(this.app.vault.on('create', () => {
+      void this.index.refreshChangedFiles();
+      this.refreshOverview();
+    }));
+    this.registerEvent(this.app.vault.on('delete', async () => {
+      await this.index.rebuild();
+      this.refreshOverview();
+    }));
 
     this.addSettingTab(new QuickMemoSettingTab(this.app, this));
   }
@@ -104,12 +114,12 @@ export default class QuickMemoPlugin extends Plugin {
 
   async activateView(): Promise<void> {
     const { workspace } = this.app;
-    let leaf: WorkspaceLeaf | null = workspace.getLeavesOfType(VIEW_TYPE_QUICK_MEMO)[0] ?? null;
-    if (!leaf) {
-      leaf = workspace.getRightLeaf(false);
-      if (!leaf) throw new Error('Unable to create Quick Memo view leaf.');
-      await leaf.setViewState({ type: VIEW_TYPE_QUICK_MEMO, active: true });
-    }
+    // Force a fresh right-sidebar view to recover from any stale/blank leaves that
+    // may have been persisted while experimenting with central editor tabs.
+    workspace.detachLeavesOfType(VIEW_TYPE_QUICK_MEMO);
+    const leaf = workspace.getRightLeaf(false);
+    if (!leaf) throw new Error('Unable to create Quick Memo view leaf.');
+    await leaf.setViewState({ type: VIEW_TYPE_QUICK_MEMO, active: true });
     workspace.revealLeaf(leaf);
   }
 
