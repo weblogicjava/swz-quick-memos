@@ -9,3 +9,8 @@ coverage/
 __pycache__/
 *.pyc
 .claude/skills/
+
+# Distribution / release artifacts (built plugin zips, staged release folders)
+*.zip
+obsidian-quick-memo/
+
