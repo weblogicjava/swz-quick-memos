@@ -8,6 +8,7 @@ import { QuickMemoParser } from './markdown/QuickMemoParser';
 import { DEFAULT_SETTINGS, normalizeSettings } from './settings/settings';
 import { QuickMemoSettingTab } from './settings/SettingsTab';
 import type { QuickMemoSettings } from './types';
+import { shouldHandleVaultFileEvent } from './vaultEvents';
 import { QuickMemoView } from './view/QuickMemoView';
 
 class ObsidianVaultAdapter {
@@ -50,6 +51,8 @@ class ObsidianVaultAdapter {
 export default class QuickMemoPlugin extends Plugin {
   settings: QuickMemoSettings = DEFAULT_SETTINGS;
   private index!: IndexService;
+  private refreshTimer: number | undefined;
+  private rebuildTimer: number | undefined;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -91,24 +94,24 @@ export default class QuickMemoPlugin extends Plugin {
       },
     });
 
-    this.registerEvent(this.app.vault.on('modify', () => {
-      void this.index.refreshChangedFiles();
+    this.registerEvent(this.app.vault.on('modify', (file) => {
+      if (file instanceof TFile && shouldHandleVaultFileEvent(file.path)) this.scheduleRefreshChangedFiles();
     }));
-    // New files add records; deleted files must drop theirs (a delta refresh can't
-    // detect deletions), so rebuild + refresh the view to keep tags/heatmap accurate.
-    this.registerEvent(this.app.vault.on('create', () => {
-      void this.index.refreshChangedFiles();
-      this.refreshOverview();
+    this.registerEvent(this.app.vault.on('create', (file) => {
+      if (file instanceof TFile && shouldHandleVaultFileEvent(file.path)) this.scheduleRefreshChangedFiles();
     }));
-    this.registerEvent(this.app.vault.on('delete', async () => {
-      await this.index.rebuild();
-      this.refreshOverview();
+    // Deleted Quick Memo files must drop their records from the cache; a delta
+    // refresh can't detect removals, so coalesce deletes into one rebuild.
+    this.registerEvent(this.app.vault.on('delete', (file) => {
+      if (file instanceof TFile && shouldHandleVaultFileEvent(file.path)) this.scheduleRebuild();
     }));
 
     this.addSettingTab(new QuickMemoSettingTab(this.app, this));
   }
 
   async onunload(): Promise<void> {
+    if (this.refreshTimer !== undefined) window.clearTimeout(this.refreshTimer);
+    if (this.rebuildTimer !== undefined) window.clearTimeout(this.rebuildTimer);
     this.app.workspace.detachLeavesOfType(VIEW_TYPE_QUICK_MEMO);
   }
 
@@ -133,6 +136,24 @@ export default class QuickMemoPlugin extends Plugin {
     // must rebuild the index and refresh any open overview so changes take effect.
     await this.index.rebuild();
     this.refreshOverview();
+  }
+
+  private scheduleRefreshChangedFiles(): void {
+    if (this.refreshTimer !== undefined) window.clearTimeout(this.refreshTimer);
+    this.refreshTimer = window.setTimeout(async () => {
+      this.refreshTimer = undefined;
+      await this.index.refreshChangedFiles();
+      this.refreshOverview();
+    }, 500);
+  }
+
+  private scheduleRebuild(): void {
+    if (this.rebuildTimer !== undefined) window.clearTimeout(this.rebuildTimer);
+    this.rebuildTimer = window.setTimeout(async () => {
+      this.rebuildTimer = undefined;
+      await this.index.rebuild();
+      this.refreshOverview();
+    }, 500);
   }
 
   private refreshOverview(): void {
