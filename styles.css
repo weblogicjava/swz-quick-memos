@@ -693,11 +693,13 @@
   outline-offset: 1px;
 }
 
-.oqm-heatmap-day.oqm-heatmap-level-0 { background: var(--background-modifier-border) !important; background-color: var(--background-modifier-border) !important; }
-.oqm-heatmap-day.oqm-heatmap-level-1 { background: rgba(var(--oqm-heatmap-green-rgb), 0.35) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.35) !important; }
-.oqm-heatmap-day.oqm-heatmap-level-2 { background: rgba(var(--oqm-heatmap-green-rgb), 0.55) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.55) !important; }
-.oqm-heatmap-day.oqm-heatmap-level-3 { background: rgba(var(--oqm-heatmap-green-rgb), 0.78) !important; background-color: rgba(var(--oqm-heatmap-green-rgb), 0.78) !important; }
-.oqm-heatmap-day.oqm-heatmap-level-4 { background: rgb(var(--oqm-heatmap-green-rgb)) !important; background-color: rgb(var(--oqm-heatmap-green-rgb)) !important; }
+/* Scoped under .oqm-root for higher specificity than theme button resets,
+   so the green levels win without !important. */
+.oqm-root .oqm-heatmap-day.oqm-heatmap-level-0 { background: var(--background-modifier-border); background-color: var(--background-modifier-border); }
+.oqm-root .oqm-heatmap-day.oqm-heatmap-level-1 { background: rgba(var(--oqm-heatmap-green-rgb), 0.35); background-color: rgba(var(--oqm-heatmap-green-rgb), 0.35); }
+.oqm-root .oqm-heatmap-day.oqm-heatmap-level-2 { background: rgba(var(--oqm-heatmap-green-rgb), 0.55); background-color: rgba(var(--oqm-heatmap-green-rgb), 0.55); }
+.oqm-root .oqm-heatmap-day.oqm-heatmap-level-3 { background: rgba(var(--oqm-heatmap-green-rgb), 0.78); background-color: rgba(var(--oqm-heatmap-green-rgb), 0.78); }
+.oqm-root .oqm-heatmap-day.oqm-heatmap-level-4 { background: rgb(var(--oqm-heatmap-green-rgb)); background-color: rgb(var(--oqm-heatmap-green-rgb)); }
 
 /* ---------- Shared focus ---------- */
 
@@ -729,6 +731,6 @@
   .oqm-root *,
   .oqm-root *::before,
   .oqm-root *::after {
-    transition: none !important;
+    transition: none;
   }
 }

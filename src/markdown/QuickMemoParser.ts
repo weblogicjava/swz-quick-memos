@@ -20,7 +20,7 @@ function toQuickMemoType(label: string): QuickMemoType | undefined {
 
 const TASK_RE = /^- \[( |x|X)\] ([0-9]{2}:[0-9]{2}) \[(记录|闪念|待办)\] (.*)$/u;
 const LIST_RE = /^- ([0-9]{2}:[0-9]{2}) \[(记录|闪念|待办)\] (.*)$/u;
-const TAG_RE = /(^|\s)(#[\p{L}\p{N}_\-\/]+)/gu;
+const TAG_RE = /(^|\s)(#[\p{L}\p{N}_/-]+)/gu;
 
 export class QuickMemoParser {
   private readonly heading: () => string;

@@ -79,7 +79,7 @@ export function renderOverview(root: HTMLElement, state: OverviewState, callback
 function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks): void {
   const profile = appendDiv(container, 'oqm-profile');
   if (state.settings.avatar) {
-    const avatar = appendEl(profile, 'img', 'oqm-avatar') as HTMLImageElement;
+    const avatar = appendEl(profile, 'img', 'oqm-avatar');
     avatar.src = state.settings.avatar;
     avatar.alt = state.settings.userName;
   }
@@ -93,7 +93,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
 
   appendDiv(container, 'oqm-section-label', '筛选');
 
-  const typeSelect = appendEl(container, 'select', 'oqm-type-filter') as HTMLSelectElement;
+  const typeSelect = appendEl(container, 'select', 'oqm-type-filter');
   for (const [value, label] of TYPE_FILTER_OPTIONS) {
     appendOption(typeSelect, label, value);
   }
@@ -109,7 +109,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
     }
   };
 
-  const search = appendEl(container, 'input', 'oqm-search') as HTMLInputElement;
+  const search = appendEl(container, 'input', 'oqm-search');
   search.type = 'search';
   search.placeholder = '关键词搜索（回车搜索）';
   search.value = state.filters.text ?? '';
@@ -134,7 +134,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
     const tags = appendDiv(container, 'oqm-tags');
     for (const [tag, count] of state.tags) {
       const selected = state.filters.tag === tag;
-      const button = appendEl(tags, 'button', selected ? 'oqm-tag-selected' : '', `${tag} ${count}`) as HTMLButtonElement;
+      const button = appendEl(tags, 'button', selected ? 'oqm-tag-selected' : '', `${tag} ${count}`);
       button.setAttribute('aria-pressed', String(selected));
       button.title = selected ? '再次点击取消标签筛选' : '按此标签筛选';
       button.onclick = () => callbacks.onFilterChange({ tag: selected ? undefined : tag });
@@ -152,7 +152,7 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
   // First row: type selector on the left, the date the record will save to on the
   // right, so the user always knows which day they're capturing into.
   const row = appendDiv(composer, 'oqm-composer-row');
-  const type = appendEl(row, 'select', 'oqm-type') as HTMLSelectElement;
+  const type = appendEl(row, 'select', 'oqm-type');
   for (const [value, label] of TYPE_OPTIONS) {
     appendOption(type, label, value);
   }
@@ -161,10 +161,10 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
 
   // Plain markdown source editor. (The cards below render the markdown; the
   // composer itself stays a source textarea.)
-  const input = appendEl(composer, 'textarea', 'oqm-input') as HTMLTextAreaElement;
+  const input = appendEl(composer, 'textarea', 'oqm-input');
   input.placeholder = '输入 Markdown，Cmd/Ctrl + Enter 保存';
 
-  const save = appendEl(composer, 'button', 'oqm-save', '保存') as HTMLButtonElement;
+  const save = appendEl(composer, 'button', 'oqm-save', '保存');
   const submit = (): void => {
     const content = input.value.trim();
     if (!content) return;
@@ -230,7 +230,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
   const card = appendDiv(list, `oqm-record oqm-record-${record.type}${record.completed ? ' is-done' : ''}`);
 
   // Top-right "more" trigger; actions live in a dropdown rather than a bottom row.
-  const trigger = appendEl(card, 'button', 'oqm-record-menu-trigger') as HTMLButtonElement;
+  const trigger = appendEl(card, 'button', 'oqm-record-menu-trigger');
   trigger.type = 'button';
   trigger.textContent = '⋮';
   trigger.setAttribute('aria-label', '更多操作');
@@ -245,18 +245,18 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
   if (record.type === 'todo') badge.textContent += record.completed ? ' · 已完成' : ' · 未完成';
 
   if (editing) {
-    const editType = appendEl(card, 'select', 'oqm-edit-type') as HTMLSelectElement;
+    const editType = appendEl(card, 'select', 'oqm-edit-type');
     for (const [value, label] of TYPE_OPTIONS) {
       appendOption(editType, label, value);
     }
     editType.value = record.type;
 
-    const editor = appendEl(card, 'textarea', 'oqm-edit-input') as HTMLTextAreaElement;
+    const editor = appendEl(card, 'textarea', 'oqm-edit-input');
     editor.value = record.body ? `${record.content}\n${record.body}` : record.content;
-    setTimeout(() => editor.focus(), 0);
+    window.setTimeout(() => editor.focus(), 0);
 
     const editActions = appendDiv(card, 'oqm-record-actions');
-    (appendEl(editActions, 'button', '', '保存') as HTMLButtonElement).onclick = () => {
+    (appendEl(editActions, 'button', '', '保存')).onclick = () => {
       const [content, ...bodyLines] = editor.value.replace(/\r\n/gu, '\n').split('\n');
       callbacks.onSaveEdit(record, {
         type: editType.value as QuickMemoType,
@@ -264,7 +264,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
         body: bodyLines.join('\n') || undefined,
       });
     };
-    (appendEl(editActions, 'button', '', '取消') as HTMLButtonElement).onclick = () => callbacks.onCancelEdit();
+    (appendEl(editActions, 'button', '', '取消')).onclick = () => callbacks.onCancelEdit();
     return;
   }
 
@@ -272,7 +272,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
   // record's completion, which syncs the `- [ ]`/`- [x]` marker in the file.
   const body = appendDiv(card, 'oqm-record-body');
   if (record.type === 'todo') {
-    const checkbox = appendEl(body, 'input', 'oqm-record-checkbox') as HTMLInputElement;
+    const checkbox = appendEl(body, 'input', 'oqm-record-checkbox');
     checkbox.type = 'checkbox';
     checkbox.checked = Boolean(record.completed);
     checkbox.setAttribute('aria-label', record.completed ? '标记为未完成' : '标记为完成');
@@ -299,7 +299,7 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
 }
 
 function addMenuItem(menu: HTMLElement, label: string, handler: () => void, cls?: string): void {
-  const item = appendEl(menu, 'button', `oqm-record-menu-item${cls ? ` ${cls}` : ''}`, label) as HTMLButtonElement;
+  const item = appendEl(menu, 'button', `oqm-record-menu-item${cls ? ` ${cls}` : ''}`, label);
   item.type = 'button';
   item.onclick = handler;
 }
@@ -349,7 +349,7 @@ function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate:
   const header = appendDiv(container, 'oqm-heatmap-header');
   appendDiv(header, 'oqm-section-label', '近 3 个月活动');
   if (selectedDate !== todayDate) {
-    const today = appendEl(header, 'button', 'oqm-heatmap-today', '今天') as HTMLButtonElement;
+    const today = appendEl(header, 'button', 'oqm-heatmap-today', '今天');
     today.type = 'button';
     today.title = '回到今天';
     today.onclick = () => callbacks.onSelectDate(todayDate);
@@ -367,7 +367,7 @@ function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate:
     const count = counts.get(dateStr) ?? 0;
     const level = count === 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((count / max) * 4)));
     const isSelected = dateStr === selectedDate;
-    const button = appendEl(grid, 'button', `oqm-heatmap-day oqm-heatmap-level-${level}${isSelected ? ' oqm-heatmap-selected' : ''}`) as HTMLButtonElement;
+    const button = appendEl(grid, 'button', `oqm-heatmap-day oqm-heatmap-level-${level}${isSelected ? ' oqm-heatmap-selected' : ''}`);
     button.type = 'button';
     button.title = `${dateStr}：${count} 条`;
     button.setAttribute('aria-label', `${dateStr}，${count} 条记录`);
@@ -402,8 +402,7 @@ function filterValueFromState(filters: ViewFilters): TypeFilterValue {
 }
 
 function appendDiv(parent: HTMLElement, cls: string, text?: string): HTMLDivElement {
-  const el = appendEl(parent, 'div', cls, text) as HTMLDivElement;
-  return el;
+  return appendEl(parent, 'div', cls, text);
 }
 
 function appendEl<K extends keyof HTMLElementTagNameMap>(
@@ -412,7 +411,7 @@ function appendEl<K extends keyof HTMLElementTagNameMap>(
   cls: string,
   text?: string,
 ): HTMLElementTagNameMap[K] {
-  const el = document.createElement(tag);
+  const el = activeDocument.createElement(tag);
   if (cls) el.className = cls;
   if (text !== undefined) el.textContent = text;
   parent.appendChild(el);
@@ -420,7 +419,7 @@ function appendEl<K extends keyof HTMLElementTagNameMap>(
 }
 
 function appendOption(select: HTMLSelectElement, label: string, value: string): void {
-  const option = document.createElement('option');
+  const option = activeDocument.createElement('option');
   option.textContent = label;
   option.value = value;
   select.appendChild(option);

@@ -1,4 +1,4 @@
-import { Component, ItemView, MarkdownRenderer, Menu, Notice, WorkspaceLeaf } from 'obsidian';
+import { App, Component, ItemView, MarkdownRenderer, Menu, Modal, Notice, Setting, WorkspaceLeaf } from 'obsidian';
 import { VIEW_TYPE_QUICK_MEMO } from '../constants';
 import type { QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
 import type { IndexService } from '../index/IndexService';
@@ -42,7 +42,7 @@ export class QuickMemoView extends ItemView {
     // Check once a minute for a local-day rollover while the view stays open.
     this.dayWatcher = window.setInterval(() => this.checkDayRollover(), 60_000);
     // Close an open record menu on the next tap/click anywhere outside it.
-    document.addEventListener('pointerdown', this.handleOutsideInteraction, true);
+    activeDocument.addEventListener('pointerdown', this.handleOutsideInteraction, true);
   }
 
   async onClose(): Promise<void> {
@@ -50,7 +50,7 @@ export class QuickMemoView extends ItemView {
       window.clearInterval(this.dayWatcher);
       this.dayWatcher = undefined;
     }
-    document.removeEventListener('pointerdown', this.handleOutsideInteraction, true);
+    activeDocument.removeEventListener('pointerdown', this.handleOutsideInteraction, true);
   }
 
   /**
@@ -220,7 +220,7 @@ export class QuickMemoView extends ItemView {
   }
 
   private async deleteTag(tag: string): Promise<void> {
-    const confirmed = window.confirm(`从所有 Quick Memo 记录中移除标签 ${tag}？\n此操作会修改包含该标签的 Daily Note 文件。`);
+    const confirmed = await confirmDialog(this.app, '删除标签', `从所有 Quick Memo 记录中移除标签 ${tag}？\n此操作会修改包含该标签的 Daily Note 文件。`);
     if (!confirmed) return;
     const count = await this.repository.removeTag(tag);
     await this.index.rebuild();
@@ -269,7 +269,7 @@ export class QuickMemoView extends ItemView {
       new Notice('该记录缺少块 ID，请先补全 ID 后再删除。');
       return;
     }
-    const confirmed = window.confirm('删除这条 Quick Memo？此操作会修改 Daily Note 文件。');
+    const confirmed = await confirmDialog(this.app, '删除记录', '删除这条 Quick Memo？此操作会修改 Daily Note 文件。');
     if (!confirmed) return;
     await this.repository.deleteRecord(record.id);
     await this.index.rebuild();
@@ -331,7 +331,7 @@ function computeStats(records: QuickMemoRecord[]): { days: number; total: number
  * rebuilding the DOM on every search keystroke discards the field mid-type.
  */
 function captureFocusRestore(scope: HTMLElement): (() => void) | undefined {
-  const el = document.activeElement;
+  const el = activeDocument.activeElement;
   if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return undefined;
   if (!scope.contains(el)) return undefined;
   const selector = el.classList.contains('oqm-search') ? '.oqm-search'
@@ -351,4 +351,28 @@ function captureFocusRestore(scope: HTMLElement): (() => void) | undefined {
       /* some input types don't support setSelectionRange */
     }
   };
+}
+
+/** A Modal-based confirmation dialog — replaces window.confirm, which Obsidian
+ *  discourages. Resolves true on confirm, false on cancel. */
+function confirmDialog(app: App, title: string, message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const modal = new Modal(app);
+    modal.setTitle(title);
+    modal.setContent(message);
+    let result = false;
+    new Setting(modal.contentEl)
+      .addButton((button) => button
+        .setButtonText('确认')
+        .setCta()
+        .onClick(() => {
+          result = true;
+          modal.close();
+        }))
+      .addButton((button) => button
+        .setButtonText('取消')
+        .onClick(() => modal.close()));
+    modal.onClose = () => resolve(result);
+    modal.open();
+  });
 }

@@ -71,26 +71,27 @@ export default class QuickMemoPlugin extends Plugin {
 
     this.addCommand({
       id: 'open-quick-memo-overview',
-      name: 'Open Quick Memo overview',
+      name: 'Open overview',
       callback: () => void this.activateView(),
     });
 
     this.addCommand({
       id: 'rebuild-quick-memo-index',
-      name: 'Rebuild Quick Memo index',
-      callback: async () => {
-        await this.index.rebuild();
-        new Notice('Quick Memo 索引已重建');
+      name: 'Rebuild index',
+      callback: () => {
+        void this.index.rebuild().then(() => new Notice('Quick Memo 索引已重建'));
       },
     });
 
     this.addCommand({
       id: 'backfill-current-day-quick-memo-ids',
-      name: 'Backfill missing Quick Memo block IDs for today',
-      callback: async () => {
-        const count = await repository.backfillMissingIds(localToday());
-        await this.index.rebuild();
-        new Notice(`已补全 ${count} 条 Quick Memo ID`);
+      name: 'Backfill missing block IDs for today',
+      callback: () => {
+        void (async () => {
+          const count = await repository.backfillMissingIds(localToday());
+          await this.index.rebuild();
+          new Notice(`已补全 ${count} 条 Quick Memo ID`);
+        })();
       },
     });
 
@@ -109,7 +110,7 @@ export default class QuickMemoPlugin extends Plugin {
     this.addSettingTab(new QuickMemoSettingTab(this.app, this));
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
     if (this.refreshTimer !== undefined) window.clearTimeout(this.refreshTimer);
     if (this.rebuildTimer !== undefined) window.clearTimeout(this.rebuildTimer);
   }
@@ -143,19 +144,17 @@ export default class QuickMemoPlugin extends Plugin {
 
   private scheduleRefreshChangedFiles(): void {
     if (this.refreshTimer !== undefined) window.clearTimeout(this.refreshTimer);
-    this.refreshTimer = window.setTimeout(async () => {
+    this.refreshTimer = window.setTimeout(() => {
       this.refreshTimer = undefined;
-      await this.index.refreshChangedFiles();
-      this.refreshOverview();
+      void this.index.refreshChangedFiles().then(() => this.refreshOverview());
     }, 500);
   }
 
   private scheduleRebuild(): void {
     if (this.rebuildTimer !== undefined) window.clearTimeout(this.rebuildTimer);
-    this.rebuildTimer = window.setTimeout(async () => {
+    this.rebuildTimer = window.setTimeout(() => {
       this.rebuildTimer = undefined;
-      await this.index.rebuild();
-      this.refreshOverview();
+      void this.index.rebuild().then(() => this.refreshOverview());
     }, 500);
   }
 
@@ -169,7 +168,7 @@ export default class QuickMemoPlugin extends Plugin {
 
 /** Format a YYYY-MM-DD date using Obsidian's moment, matching the user's Daily Notes config exactly. */
 function momentFormatter(): (date: string, format: string) => string {
-  const momentFn = (globalThis as { moment?: (inp: string) => { format(f: string): string } }).moment;
+  const momentFn = (window as unknown as { moment?: (inp: string) => { format(f: string): string } }).moment;
   if (typeof momentFn === 'function') {
     return (date, format) => momentFn(date).format(format);
   }
