@@ -22,6 +22,19 @@ describe('viewState', () => {
     expect(filterRecordsForView(set, { type: 'todo', todoStatus: 'completed' }).map((record) => record.id)).toEqual(['done']);
   });
 
+  it('ignores selectedDate when filtering by tag, spanning all dates', () => {
+    // selectedDate is 2026-06-18, but tag #a also matches 2026-06-17 — both come back.
+    expect(filterRecordsForView(records, { selectedDate: '2026-06-18', tag: '#a' }).map((record) => record.id)).toEqual(['1', '3']);
+  });
+
+  it('ignores selectedDate when filtering by text, spanning all dates', () => {
+    expect(filterRecordsForView(records, { selectedDate: '2026-06-18', text: 'note' }).map((record) => record.id)).toEqual(['3']);
+  });
+
+  it('still applies selectedDate when no tag or text filter is set', () => {
+    expect(filterRecordsForView(records, { selectedDate: '2026-06-18' }).map((record) => record.id)).toEqual(['1', '2']);
+  });
+
   it('filters open todos only when todoStatus is open', () => {
     const set: QuickMemoRecord[] = [
       makeRecord('open', '2026-06-18', '08:00', 'todo', 'open todo', false),

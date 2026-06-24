@@ -13,6 +13,18 @@ const TEXT_MARKDOWN: MarkdownApi = {
   },
 };
 
+export interface OverviewStats {
+  /** Distinct dates that have at least one record. */
+  days: number;
+  /** Total record count across all dates. */
+  total: number;
+  flash: number;
+  record: number;
+  todo: number;
+  /** Completed todos (subset of `todo`). */
+  todoDone: number;
+}
+
 export interface OverviewState {
   settings: QuickMemoSettings;
   records: QuickMemoRecord[];
@@ -23,6 +35,7 @@ export interface OverviewState {
   editingRecordId?: string;
   openMenuRecordId?: string;
   filters: ViewFilters;
+  stats: OverviewStats;
   markdown?: MarkdownApi;
 }
 
@@ -76,6 +89,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
 
   // Heatmap sits between the profile/slogan and the filter controls.
   renderHeatmap(container, state.heatmap, state.todayDate, state.selectedDate, callbacks);
+  renderStats(container, state.stats);
 
   appendDiv(container, 'oqm-section-label', '筛选');
 
@@ -134,11 +148,16 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
 
 function renderMain(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks, markdown: MarkdownApi): void {
   const composer = appendDiv(container, 'oqm-composer');
-  const type = appendEl(composer, 'select', 'oqm-type') as HTMLSelectElement;
+
+  // First row: type selector on the left, the date the record will save to on the
+  // right, so the user always knows which day they're capturing into.
+  const row = appendDiv(composer, 'oqm-composer-row');
+  const type = appendEl(row, 'select', 'oqm-type') as HTMLSelectElement;
   for (const [value, label] of TYPE_OPTIONS) {
     appendOption(type, label, value);
   }
   type.value = state.settings.defaultRecordType;
+  appendDiv(row, 'oqm-composer-date', state.selectedDate);
 
   // Plain markdown source editor. (The cards below render the markdown; the
   // composer itself stays a source textarea.)
@@ -157,6 +176,14 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') submit();
   };
 
+  // Tag / keyword filters are vault-wide: group the results by date instead of
+  // showing a single-day timeline. Otherwise it's the normal single-day view.
+  const crossDate = Boolean(state.filters.tag) || Boolean(state.filters.text?.trim());
+  if (crossDate) {
+    renderCrossDateTimeline(container, state, callbacks, markdown);
+    return;
+  }
+
   appendEl(container, 'h3', '', `${state.selectedDate} 时间线`);
   const list = appendDiv(container, 'oqm-record-list');
   if (state.records.length === 0) {
@@ -167,6 +194,35 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
   for (const record of state.records) {
     const key = recordKey(record);
     renderRecord(list, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks, markdown);
+  }
+}
+
+function renderCrossDateTimeline(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks, markdown: MarkdownApi): void {
+  appendEl(container, 'h3', '', '筛选结果');
+  if (state.records.length === 0) {
+    const list = appendDiv(container, 'oqm-record-list');
+    appendDiv(list, 'oqm-empty', '没有匹配的 Quick Memo。');
+    return;
+  }
+
+  // Records arrive already sorted (newest first). Group them by date, preserving
+  // that order, so each heading is followed by its day's records.
+  const groups = new Map<string, QuickMemoRecord[]>();
+  for (const record of state.records) {
+    const bucket = groups.get(record.date) ?? [];
+    bucket.push(record);
+    groups.set(record.date, bucket);
+  }
+
+  const list = appendDiv(container, 'oqm-record-list');
+  for (const [date, groupRecords] of groups) {
+    const group = appendDiv(list, 'oqm-date-group');
+    appendDiv(group, 'oqm-date-group-heading', date);
+    const cards = appendDiv(group, 'oqm-date-group-cards');
+    for (const record of groupRecords) {
+      const key = recordKey(record);
+      renderRecord(cards, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks, markdown);
+    }
   }
 }
 
@@ -254,12 +310,50 @@ export function recordKey(record: QuickMemoRecord): string {
   return record.id ?? `${record.filePath}:${record.lineStart}`;
 }
 
+function renderStats(container: HTMLElement, stats: OverviewStats): void {
+  const block = appendDiv(container, 'oqm-stats');
+  const ratioPct = stats.todo > 0 ? Math.round((stats.todoDone / stats.todo) * 1000) / 10 : 0;
+
+  // Top row: the three record types (flash / record / todo).
+  const typesRow = appendDiv(block, 'oqm-stats-row oqm-stats-types');
+  addStatCard(typesRow, String(stats.flash), '闪念');
+  addStatCard(typesRow, String(stats.record), '记录');
+  addStatCard(typesRow, String(stats.todo), '待办');
+
+  // Bottom row: usage breadth — days used and total records, each filling half.
+  const breadthRow = appendDiv(block, 'oqm-stats-row oqm-stats-breadth');
+  addStatCard(breadthRow, String(stats.days), '使用天数');
+  addStatCard(breadthRow, String(stats.total), '总记录');
+
+  // Completion ratio: a thin progress bar with just the done/total figure.
+  const ratio = appendDiv(block, 'oqm-stats-ratio');
+  const bar = appendDiv(ratio, 'oqm-stats-ratio-bar');
+  const fill = appendDiv(bar, 'oqm-stats-ratio-fill');
+  fill.style.width = `${ratioPct}%`;
+  appendDiv(ratio, 'oqm-stats-ratio-text', `${stats.todoDone}/${stats.todo}`);
+}
+
+function addStatCard(parent: HTMLElement, num: string, label: string): void {
+  const card = appendDiv(parent, 'oqm-stat-card');
+  appendDiv(card, 'oqm-stat-num', num);
+  appendDiv(card, 'oqm-stat-label', label);
+}
+
 function renderHeatmap(container: HTMLElement, heatmap: HeatmapDay[], todayDate: string, selectedDate: string, callbacks: OverviewCallbacks): void {
   const counts = new Map<string, number>();
   for (const day of heatmap) counts.set(day.date, day.count);
   const max = Math.max(1, ...heatmap.map((day) => day.count));
 
-  appendDiv(container, 'oqm-section-label', '近 3 个月活动');
+  // Header row: "近 3 个月活动" label on the left, a "今天" jump link on the right
+  // (only when the user is browsing a historical date).
+  const header = appendDiv(container, 'oqm-heatmap-header');
+  appendDiv(header, 'oqm-section-label', '近 3 个月活动');
+  if (selectedDate !== todayDate) {
+    const today = appendEl(header, 'button', 'oqm-heatmap-today', '今天') as HTMLButtonElement;
+    today.type = 'button';
+    today.title = '回到今天';
+    today.onclick = () => callbacks.onSelectDate(todayDate);
+  }
 
   // A single flat stream of exactly 90 small squares, anchored at the 1st of the
   // month two months before today. Today therefore falls inside the grid (not at

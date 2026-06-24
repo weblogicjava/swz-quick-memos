@@ -13,8 +13,11 @@ export interface ViewFilters {
 
 export function filterRecordsForView(records: QuickMemoRecord[], filters: ViewFilters): QuickMemoRecord[] {
   const text = filters.text?.trim().toLowerCase();
+  // Tag and keyword filters are vault-wide searches: they ignore the selected
+  // date so the user sees every matching record across all days, grouped later.
+  const crossDate = Boolean(filters.tag) || Boolean(text);
   return records.filter((record) => {
-    if (filters.selectedDate && record.date !== filters.selectedDate) return false;
+    if (!crossDate && filters.selectedDate && record.date !== filters.selectedDate) return false;
     if (filters.type && filters.type !== 'all' && record.type !== filters.type) return false;
     if (filters.tag && !record.tags.includes(filters.tag)) return false;
     if (filters.todoStatus === 'completed' && record.completed !== true) return false;

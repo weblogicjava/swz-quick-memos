@@ -1,6 +1,6 @@
 {
   "name": "swz-quick-memos",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Markdown-native Obsidian quick memo plugin",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,12 @@
     "test:watch": "vitest",
     "typecheck": "tsc -noEmit -skipLibCheck"
   },
-  "keywords": ["obsidian", "plugin", "memo", "daily-notes"],
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "memo",
+    "daily-notes"
+  ],
   "author": "songwz",
   "license": "MIT",
   "devDependencies": {

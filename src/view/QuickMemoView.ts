@@ -144,6 +144,7 @@ export class QuickMemoView extends ItemView {
       editingRecordId: this.editingRecordId,
       openMenuRecordId: this.openMenuRecordId,
       filters: this.filters,
+      stats: computeStats(allRecords),
       markdown: {
         render: (source, el) => {
           const component = new Component();
@@ -205,6 +206,17 @@ export class QuickMemoView extends ItemView {
     });
 
     restoreFocus?.();
+
+    // If a record's action menu is open, make sure it isn't clipped by the bottom
+    // of the viewport — scroll it into view on the next frame (after the DOM is
+    // laid out). `block: 'nearest'` only scrolls when the menu is off-screen, so
+    // middle-of-list cards don't jump.
+    if (this.openMenuRecordId !== undefined) {
+      window.requestAnimationFrame(() => {
+        const menu = this.contentEl.querySelector<HTMLElement>('.oqm-record-menu');
+        menu?.scrollIntoView({ block: 'nearest' });
+      });
+    }
   }
 
   private async deleteTag(tag: string): Promise<void> {
@@ -292,6 +304,25 @@ function currentTime(): string {
 function localDateString(date: Date): string {
   const pad = (value: number): string => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Reduce the full record set into the global stats shown under the heatmap. */
+function computeStats(records: QuickMemoRecord[]): { days: number; total: number; flash: number; record: number; todo: number; todoDone: number } {
+  const days = new Set<string>();
+  let flash = 0;
+  let record = 0;
+  let todo = 0;
+  let todoDone = 0;
+  for (const r of records) {
+    days.add(r.date);
+    if (r.type === 'flash') flash += 1;
+    else if (r.type === 'record') record += 1;
+    else if (r.type === 'todo') {
+      todo += 1;
+      if (r.completed) todoDone += 1;
+    }
+  }
+  return { days: days.size, total: records.length, flash, record, todo, todoDone };
 }
 
 /**
