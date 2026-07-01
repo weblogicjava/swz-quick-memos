@@ -89,7 +89,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
 
   // Heatmap sits between the profile/slogan and the filter controls.
   renderHeatmap(container, state.heatmap, state.todayDate, state.selectedDate, callbacks);
-  renderStats(container, state.stats);
+  renderStats(container, state.stats, state.filters, callbacks);
 
   appendDiv(container, 'oqm-section-label', '筛选');
 
@@ -176,9 +176,10 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') submit();
   };
 
-  // Tag / keyword filters are vault-wide: group the results by date instead of
-  // showing a single-day timeline. Otherwise it's the normal single-day view.
-  const crossDate = Boolean(state.filters.tag) || Boolean(state.filters.text?.trim());
+  // Tag / keyword / type filters are vault-wide: group the results by date
+  // instead of showing a single-day timeline. Otherwise it's the normal view.
+  const hasType = state.filters.type !== undefined && state.filters.type !== 'all';
+  const crossDate = Boolean(state.filters.tag) || Boolean(state.filters.text?.trim()) || hasType;
   if (crossDate) {
     renderCrossDateTimeline(container, state, callbacks, markdown);
     return;
@@ -240,9 +241,12 @@ function renderRecord(list: HTMLElement, record: QuickMemoRecord, editing: boole
 
   const meta = appendDiv(card, 'oqm-record-meta');
   appendEl(meta, 'span', '', record.time);
-  const badge = appendEl(meta, 'span', 'oqm-record-badge') as HTMLElement;
+  const badge = appendEl(meta, 'span', 'oqm-record-badge');
   badge.textContent = typeLabel(record.type);
-  if (record.type === 'todo') badge.textContent += record.completed ? ' · 已完成' : ' · 未完成';
+  if (record.type === 'todo') {
+    badge.textContent += record.completed ? ' · 已完成' : ' · 未完成';
+    badge.classList.add(record.completed ? 'oqm-badge-done' : 'oqm-badge-open');
+  }
 
   if (editing) {
     const editType = appendEl(card, 'select', 'oqm-edit-type');
@@ -310,15 +314,25 @@ export function recordKey(record: QuickMemoRecord): string {
   return record.id ?? `${record.filePath}:${record.lineStart}`;
 }
 
-function renderStats(container: HTMLElement, stats: OverviewStats): void {
+function renderStats(container: HTMLElement, stats: OverviewStats, filters: ViewFilters, callbacks: OverviewCallbacks): void {
   const block = appendDiv(container, 'oqm-stats');
   const ratioPct = stats.todo > 0 ? Math.round((stats.todoDone / stats.todo) * 1000) / 10 : 0;
 
-  // Top row: the three record types (flash / record / todo).
+  // Top row: the three record types (flash / record / todo). Each is a clickable
+  // shortcut that filters the timeline to that type across all dates; clicking
+  // the active one clears it.
   const typesRow = appendDiv(block, 'oqm-stats-row oqm-stats-types');
-  addStatCard(typesRow, String(stats.flash), '闪念');
-  addStatCard(typesRow, String(stats.record), '记录');
-  addStatCard(typesRow, String(stats.todo), '待办');
+  const typeCards: Array<readonly [QuickMemoType, string]> = [['flash', '闪念'], ['record', '记录'], ['todo', '待办']];
+  for (const [type, label] of typeCards) {
+    const active = filters.type === type;
+    addStatCard(typesRow, String(stats[type]), label, {
+      active,
+      onClick: () => callbacks.onFilterChange({
+        type: active ? undefined : type,
+        todoStatus: undefined,
+      }),
+    });
+  }
 
   // Bottom row: usage breadth — days used and total records, each filling half.
   const breadthRow = appendDiv(block, 'oqm-stats-row oqm-stats-breadth');
@@ -333,8 +347,14 @@ function renderStats(container: HTMLElement, stats: OverviewStats): void {
   appendDiv(ratio, 'oqm-stats-ratio-text', `${stats.todoDone}/${stats.todo}`);
 }
 
-function addStatCard(parent: HTMLElement, num: string, label: string): void {
-  const card = appendDiv(parent, 'oqm-stat-card');
+function addStatCard(parent: HTMLElement, num: string, label: string, opts?: { active?: boolean; onClick?: () => void }): void {
+  const cls = `oqm-stat-card${opts?.active ? ' oqm-stat-card-active' : ''}${opts?.onClick ? ' oqm-stat-card-clickable' : ''}`;
+  const card = opts?.onClick ? appendEl(parent, 'button', cls) : appendDiv(parent, cls);
+  if (opts?.onClick) {
+    (card as HTMLButtonElement).type = 'button';
+    card.onclick = opts.onClick;
+    card.setAttribute('aria-pressed', String(Boolean(opts.active)));
+  }
   appendDiv(card, 'oqm-stat-num', num);
   appendDiv(card, 'oqm-stat-label', label);
 }

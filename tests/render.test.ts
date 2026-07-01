@@ -344,6 +344,76 @@ describe('renderOverview', () => {
     const groupHeadings = Array.from(root.querySelectorAll('.oqm-date-group-heading')).map((el) => el.textContent);
     expect(groupHeadings).toEqual(['2026-06-18', '2026-06-17']);
   });
+
+  it('makes the flash/record/todo stat cards clickable to filter by type', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats({ flash: 4, record: 3, todo: 2 }),
+    }, callbacks);
+
+    const cards = Array.from(root.querySelectorAll('.oqm-stat-card-clickable')) as HTMLButtonElement[];
+    expect(cards).toHaveLength(3);
+    expect(cards.map((c) => c.textContent)).toEqual(['4闪念', '3记录', '2待办']);
+    // Clicking the flash card applies the type filter.
+    cards[0].click();
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: 'flash', todoStatus: undefined });
+  });
+
+  it('marks the stat card active when its type is the current filter and toggles it off', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'flash' },
+      stats: makeStats(),
+    }, callbacks);
+
+    const cards = Array.from(root.querySelectorAll('.oqm-stat-card-clickable')) as HTMLButtonElement[];
+    expect(cards[0].classList.contains('oqm-stat-card-active')).toBe(true);
+    // Clicking the active card clears the filter.
+    cards[0].click();
+    expect(callbacks.onFilterChange).toHaveBeenCalledWith({ type: undefined, todoStatus: undefined });
+  });
+
+  it('color-codes todo badges by completion state', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [
+        makeRecord('done', '2026-06-18', '09:00', 'todo', 'done task', true),
+        makeRecord('open', '2026-06-18', '10:00', 'todo', 'open task', false),
+      ],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats(),
+    }, makeCallbacks());
+
+    const badges = Array.from(root.querySelectorAll('.oqm-record-badge'));
+    expect(badges[0].classList.contains('oqm-badge-done')).toBe(true);
+    expect(badges[1].classList.contains('oqm-badge-open')).toBe(true);
+  });
 });
 
 function makeCallbacks() {

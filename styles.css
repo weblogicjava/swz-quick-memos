@@ -378,6 +378,17 @@
   color: var(--text-normal);
 }
 
+/* Todo badges are color-coded by completion: green when done, amber when open. */
+.oqm-record-badge.oqm-badge-done {
+  background: rgba(var(--color-green-rgb, 76, 175, 80), 0.18);
+  color: rgb(var(--color-green-rgb, 76, 175, 80));
+}
+
+.oqm-record-badge.oqm-badge-open {
+  background: rgba(var(--color-orange-rgb, 218, 130, 42), 0.18);
+  color: rgb(var(--color-orange-rgb, 218, 130, 42));
+}
+
 /* ---------- Record body: checkbox + rendered markdown ---------- */
 
 .oqm-record-body {
@@ -606,15 +617,32 @@
 }
 
 .oqm-stat-card {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
+  min-height: 52px;
   padding: var(--size-2-3) 2px;
   border-radius: var(--radius-s);
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   text-align: center;
+}
+
+/* Clickable stat cards are <button> elements: reset UA button defaults so they
+   render at the exact same height as the non-clickable <div> cards. */
+button.oqm-stat-card {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  min-height: 0;
+  line-height: inherit;
+  font: inherit;
+  width: 100%;
+  height: 100%;
+  align-self: stretch;
 }
 
 .oqm-stat-num {
@@ -630,6 +658,37 @@
   font-size: var(--font-ui-smaller);
   color: var(--text-faint);
   line-height: 1.1;
+}
+
+.oqm-stat-card-clickable {
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.oqm-stat-card-clickable:hover {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+
+.oqm-stat-card-clickable:hover .oqm-stat-num,
+.oqm-stat-card-clickable:hover .oqm-stat-label {
+  color: var(--text-normal);
+}
+
+.oqm-stat-card-active {
+  border-color: var(--interactive-accent);
+  background: rgba(var(--interactive-accent-rgb, 124, 77, 255), 0.15);
+}
+
+.oqm-stat-card-active .oqm-stat-num {
+  color: var(--interactive-accent);
+  font-weight: 700;
+}
+
+.oqm-stat-card-active .oqm-stat-label {
+  color: var(--interactive-accent);
+  opacity: 0.85;
 }
 
 .oqm-stats-ratio {
