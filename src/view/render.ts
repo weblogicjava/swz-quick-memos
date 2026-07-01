@@ -1,5 +1,5 @@
 import type { HeatmapDay, QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
-import type { TodoStatusFilter, TypeFilter, ViewFilters } from './viewState';
+import type { TypeFilter, ViewFilters } from './viewState';
 
 /** Markdown render bridge — render.ts stays free of Obsidian. The view injects
  *  the real MarkdownRenderer; tests fall back to the plain-text default. */
@@ -101,11 +101,11 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
   typeSelect.onchange = () => {
     const value = typeSelect.value as TypeFilterValue;
     if (value === 'todo-done') {
-      callbacks.onFilterChange({ type: 'todo', todoStatus: 'completed' as TodoStatusFilter });
+      callbacks.onFilterChange({ type: 'todo', todoStatus: 'completed' });
     } else if (value === 'todo-open') {
-      callbacks.onFilterChange({ type: 'todo', todoStatus: 'open' as TodoStatusFilter });
+      callbacks.onFilterChange({ type: 'todo', todoStatus: 'open' });
     } else {
-      callbacks.onFilterChange({ type: value as TypeFilter, todoStatus: undefined });
+      callbacks.onFilterChange({ type: value, todoStatus: undefined });
     }
   };
 

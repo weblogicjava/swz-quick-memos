@@ -19,7 +19,7 @@ const VALID_SORTS: SortDirection[] = ['asc', 'desc'];
 
 export function normalizeSettings(raw: unknown): QuickMemoSettings {
   const value = isObject(raw) ? raw : {};
-  const merged = { ...DEFAULT_SETTINGS, ...value } as QuickMemoSettings;
+  const merged: QuickMemoSettings = { ...DEFAULT_SETTINGS, ...value };
 
   if (!VALID_TYPES.includes(merged.defaultRecordType)) {
     merged.defaultRecordType = DEFAULT_SETTINGS.defaultRecordType;

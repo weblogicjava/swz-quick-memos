@@ -2,7 +2,7 @@
 
 ![Quick Memo 预览](imgs/Snipaste_2026-06-21_15-01-27.png)
 
-**English:** Quick Memo is a Markdown-native Obsidian plugin for fast daily capture of records (记录), flash thoughts (闪念), and todos (待办). It is database-free — the Daily Note Markdown file is the single source of truth. The plugin reads and writes one `## Quick Memo` section per day and keeps a rebuildable in-memory index for search, filters, and a 90-day activity heatmap. Records are stored in dedicated `yyyy-MM-dd-quick-memos.md` files, so your regular `yyyy-MM-dd.md` daily notes are never touched.
+**English:** Quick Memo is a Markdown-native Obsidian plugin for fast daily capture of records (记录), flash thoughts (闪念), and todos (待办). It is database-free — the Daily Note Markdown file is the single source of truth. The plugin reads and writes one `## Quick Memo` section per day and keeps a rebuildable in-memory index for search, filters, and a 90-day activity heatmap. Records are stored in dedicated `yyyy-MM-dd-quick-memos.md` files, so your regular `yyyy-MM-dd.md` daily notes are never touched. [Full English README →](./README.en.md)
 
 **中文：** 一个 Markdown 原生的 Obsidian 插件，用于日常快速记录「记录 / 闪念 / 待办」，类似 Thino 的轻量捕获体验，但**不依赖任何数据库**——Daily Note 的 Markdown 文件就是唯一数据源，插件只读写其中一个 `## Quick Memo` 二级标题段落，并维护一个可随时重建的内存索引用于搜索、筛选和热力图。
 

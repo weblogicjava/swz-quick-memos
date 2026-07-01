@@ -342,8 +342,8 @@ function captureFocusRestore(scope: HTMLElement): (() => void) | undefined {
   const start = el.selectionStart ?? el.value.length;
   const end = el.selectionEnd ?? el.value.length;
   return () => {
-    const next = scope.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement | null;
-    if (!next) return;
+    const next = scope.querySelector(selector);
+    if (!(next instanceof HTMLInputElement) && !(next instanceof HTMLTextAreaElement)) return;
     next.focus();
     try {
       next.setSelectionRange(start, end);
