@@ -134,7 +134,7 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
     const tags = appendDiv(container, 'oqm-tags');
     for (const [tag, count] of state.tags) {
       const selected = state.filters.tag === tag;
-      const button = appendEl(tags, 'button', selected ? 'oqm-tag-selected' : '', `${tag} ${count}`);
+      const button = appendEl(tags, 'button', selected ? 'oqm-tag-selected' : '');
       button.setAttribute('aria-pressed', String(selected));
       button.title = selected ? '再次点击取消标签筛选' : '按此标签筛选';
       button.onclick = () => callbacks.onFilterChange({ tag: selected ? undefined : tag });
@@ -142,6 +142,8 @@ function renderSidebar(container: HTMLElement, state: OverviewState, callbacks: 
         event.preventDefault();
         callbacks.onTagContext(tag, event);
       };
+      appendEl(button, 'span', 'oqm-tag-name', tag);
+      appendEl(button, 'span', 'oqm-tag-count', String(count));
     }
   }
 }
@@ -340,11 +342,15 @@ function renderStats(container: HTMLElement, stats: OverviewStats, filters: View
   addStatCard(breadthRow, String(stats.total), '总记录');
 
   // Completion ratio: a thin progress bar with just the done/total figure.
-  const ratio = appendDiv(block, 'oqm-stats-ratio');
-  const bar = appendDiv(ratio, 'oqm-stats-ratio-bar');
-  const fill = appendDiv(bar, 'oqm-stats-ratio-fill');
-  fill.style.width = `${ratioPct}%`;
-  appendDiv(ratio, 'oqm-stats-ratio-text', `${stats.todoDone}/${stats.todo}`);
+  // Hidden once every todo is done (or there are no todos) — the bar communicates
+  // remaining work, so it adds nothing when nothing remains.
+  if (stats.todoDone < stats.todo) {
+    const ratio = appendDiv(block, 'oqm-stats-ratio');
+    const bar = appendDiv(ratio, 'oqm-stats-ratio-bar');
+    const fill = appendDiv(bar, 'oqm-stats-ratio-fill');
+    fill.style.width = `${ratioPct}%`;
+    appendDiv(ratio, 'oqm-stats-ratio-text', `${stats.todoDone}/${stats.todo}`);
+  }
 }
 
 function addStatCard(parent: HTMLElement, num: string, label: string, opts?: { active?: boolean; onClick?: () => void }): void {

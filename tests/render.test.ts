@@ -147,6 +147,28 @@ describe('renderOverview', () => {
     expect(callbacks.onFilterChange).toHaveBeenCalledWith({ tag: undefined });
   });
 
+  it('renders the tag count inside a separate badge element, not loose text', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [['#work', 7]],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats(),
+    }, makeCallbacks());
+
+    const tagButton = root.querySelector<HTMLButtonElement>('.oqm-tags button')!;
+    const name = tagButton.querySelector('.oqm-tag-name');
+    const count = tagButton.querySelector('.oqm-tag-count');
+    expect(name?.textContent).toBe('#work');
+    expect(count?.textContent).toBe('7');
+  });
+
   it('offers all six type filter options including todo status composites', () => {
     const root = document.createElement('div');
     renderOverview(root, {
@@ -260,6 +282,44 @@ describe('renderOverview', () => {
     const bar = stats!.querySelector<HTMLDivElement>('.oqm-stats-ratio-bar > div');
     expect(bar).toBeTruthy();
     expect(bar!.style.width).toBe('66.7%');
+  });
+
+  it('hides the todo completion bar once every todo is done', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats({ todo: 3, todoDone: 3 }),
+    }, makeCallbacks());
+
+    expect(root.querySelector('.oqm-stats-ratio')).toBeNull();
+  });
+
+  it('still shows the todo completion bar when there are uncompleted todos', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats({ todo: 3, todoDone: 1 }),
+    }, makeCallbacks());
+
+    const ratio = root.querySelector('.oqm-stats-ratio');
+    expect(ratio).toBeTruthy();
+    expect(ratio?.textContent).toContain('1/3');
   });
 
   it('shows a 今天 link when a non-today date is selected and jumps back to today on click', () => {
