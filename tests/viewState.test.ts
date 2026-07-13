@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuickMemoRecord } from '../src/types';
-import { dateRangeForPreset, filterRecordsForView, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
+import { activeFilterChips, dateRangeForPreset, filterRecordsForView, isSkippableFilterPatch, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
 
 const records: QuickMemoRecord[] = [
   makeRecord('1', '2026-06-18', '09:00', 'flash', 'idea #a'),
@@ -72,6 +72,92 @@ describe('viewState', () => {
       const copy = [...pair];
       sortRecordsForDisplay(pair, 'desc');
       expect(pair.map((record) => record.id)).toEqual(copy.map((record) => record.id));
+    });
+  });
+
+  describe('activeFilterChips', () => {
+    it('returns no chips when no filters are set', () => {
+      expect(activeFilterChips({})).toEqual([]);
+    });
+
+    it('ignores selectedDate (it is not a removable query condition)', () => {
+      expect(activeFilterChips({ selectedDate: '2026-06-18' })).toEqual([]);
+    });
+
+    it('emits a type chip with the localized label that clears type and todoStatus', () => {
+      const chips = activeFilterChips({ type: 'flash' });
+      expect(chips).toHaveLength(1);
+      expect(chips[0]).toMatchObject({ key: 'type', label: '闪念', fullLabel: '闪念' });
+      expect(chips[0].clear).toEqual({ type: undefined, todoStatus: undefined });
+    });
+
+    it('labels plain todo as 待办', () => {
+      expect(activeFilterChips({ type: 'todo' })[0].label).toBe('待办');
+    });
+
+    it('labels completed todos as 已完成待办', () => {
+      const chips = activeFilterChips({ type: 'todo', todoStatus: 'completed' });
+      expect(chips).toHaveLength(1);
+      expect(chips[0].label).toBe('已完成待办');
+    });
+
+    it('labels open todos as 未完成待办', () => {
+      expect(activeFilterChips({ type: 'todo', todoStatus: 'open' })[0].label).toBe('未完成待办');
+    });
+
+    it('does not emit a type chip when type is all', () => {
+      expect(activeFilterChips({ type: 'all' })).toEqual([]);
+    });
+
+    it('emits a tag chip prefixed with # that clears only tag', () => {
+      const chips = activeFilterChips({ tag: '#work' });
+      expect(chips).toHaveLength(1);
+      expect(chips[0]).toMatchObject({ key: 'tag', label: '#work', fullLabel: '#work' });
+      expect(chips[0].clear).toEqual({ tag: undefined });
+    });
+
+    it('emits a keyword chip prefixed with 关键词： that clears only text', () => {
+      const chips = activeFilterChips({ text: 'abc' });
+      expect(chips).toHaveLength(1);
+      expect(chips[0]).toMatchObject({ key: 'text', label: '关键词：abc', fullLabel: '关键词：abc' });
+      expect(chips[0].clear).toEqual({ text: undefined });
+    });
+
+    it('ignores a keyword that is only whitespace', () => {
+      expect(activeFilterChips({ text: '   ' })).toEqual([]);
+    });
+
+    it('orders chips type → tag → keyword and carries the full keyword text', () => {
+      const chips = activeFilterChips({ type: 'flash', tag: '#a', text: 'long query' });
+      expect(chips.map((chip) => chip.key)).toEqual(['type', 'tag', 'text']);
+      expect(chips[2].fullLabel).toBe('关键词：long query');
+    });
+  });
+
+  describe('isSkippableFilterPatch', () => {
+    it('skips a no-op text re-commit (search box Enter/blur firing the same value)', () => {
+      expect(isSkippableFilterPatch({ text: 'abc' }, { text: 'abc' })).toBe(true);
+    });
+
+    it('applies a real text change', () => {
+      expect(isSkippableFilterPatch({ text: 'xyz' }, { text: 'abc' })).toBe(false);
+    });
+
+    it('applies clearing the keyword (text -> undefined is a real change)', () => {
+      expect(isSkippableFilterPatch({ text: undefined }, { text: 'abc' })).toBe(false);
+    });
+
+    it('applies a tag-only patch even when there is no text filter', () => {
+      expect(isSkippableFilterPatch({ tag: undefined }, {})).toBe(false);
+    });
+
+    it('applies clear-all even when there is no keyword filter', () => {
+      const clearAll = { type: undefined, tag: undefined, text: undefined, todoStatus: undefined };
+      expect(isSkippableFilterPatch(clearAll, { type: 'flash', tag: '#a' })).toBe(false);
+    });
+
+    it('applies a plain type change', () => {
+      expect(isSkippableFilterPatch({ type: 'flash', todoStatus: undefined }, {})).toBe(false);
     });
   });
 

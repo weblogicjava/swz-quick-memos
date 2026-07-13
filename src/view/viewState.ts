@@ -11,6 +11,69 @@ export interface ViewFilters {
   todoStatus?: TodoStatusFilter;
 }
 
+/** A single removable active-filter capsule shown above the results. `clear` is
+ *  the partial patch that removes just this condition when applied via
+ *  onFilterChange. */
+export interface ActiveFilterChip {
+  key: 'type' | 'tag' | 'text';
+  /** Shown in the chip (may be CSS-truncated). */
+  label: string;
+  /** Untruncated text, for title / aria-label. */
+  fullLabel: string;
+  /** The patch that removes just this condition. */
+  clear: Partial<ViewFilters>;
+}
+
+/** Describe the active cross-date filters as removable chips, in the order
+ *  type → tag → keyword. `selectedDate` is excluded — it is the always-present
+ *  base date, not a removable query condition. */
+export function activeFilterChips(filters: ViewFilters): ActiveFilterChip[] {
+  const chips: ActiveFilterChip[] = [];
+  const typeLabel = typeChipLabel(filters);
+  if (typeLabel) {
+    chips.push({
+      key: 'type',
+      label: typeLabel,
+      fullLabel: typeLabel,
+      clear: { type: undefined, todoStatus: undefined },
+    });
+  }
+  if (filters.tag) {
+    chips.push({ key: 'tag', label: filters.tag, fullLabel: filters.tag, clear: { tag: undefined } });
+  }
+  const text = filters.text?.trim();
+  if (text) {
+    const label = `关键词：${text}`;
+    chips.push({ key: 'text', label, fullLabel: label, clear: { text: undefined } });
+  }
+  return chips;
+}
+
+/** Label for the active type filter, mirroring the composite select options.
+ *  Returns undefined when no type chip should appear (none / `all`). */
+function typeChipLabel(filters: ViewFilters): string | undefined {
+  if (filters.type === undefined || filters.type === 'all') return undefined;
+  if (filters.type === 'record') return '记录';
+  if (filters.type === 'flash') return '闪念';
+  if (filters.type === 'todo') {
+    if (filters.todoStatus === 'completed') return '已完成待办';
+    if (filters.todoStatus === 'open') return '未完成待办';
+    return '待办';
+  }
+  return undefined;
+}
+
+/** Should an onFilterChange patch be ignored? Only a no-op text commit is — the
+ *  search box's Enter/blur handler re-fires with the same value while the DOM
+ *  is being torn down and rebuilt, which would re-trigger a search. Every other
+ *  patch (a real text change, a chip removal, clear-all) is applied, so clearing
+ *  non-text filters never gets short-circuited. */
+export function isSkippableFilterPatch(patch: Partial<ViewFilters>, current: ViewFilters): boolean {
+  const keys = Object.keys(patch);
+  if (!(keys.length === 1 && keys[0] === 'text')) return false;
+  return (patch.text ?? '') === (current.text ?? '');
+}
+
 export function filterRecordsForView(records: QuickMemoRecord[], filters: ViewFilters): QuickMemoRecord[] {
   const text = filters.text?.trim().toLowerCase();
   // Tag, keyword, and type filters are vault-wide: they ignore the selected

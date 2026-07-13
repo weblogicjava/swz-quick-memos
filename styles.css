@@ -260,6 +260,79 @@
   color: var(--text-normal);
 }
 
+/* ---------- Active-filter chips (inline with the 筛选结果 heading) ---------- */
+
+.oqm-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-2-2);
+  margin: 0 0 var(--size-4-3);
+}
+
+/* Scoped under .oqm-filter-bar so this wins over the generic .oqm-main h3 margin
+   (specificity 0,2,0 > 0,1,1) without resorting to !important. */
+.oqm-filter-bar .oqm-filter-bar-title {
+  margin: 0;
+  font-size: var(--font-ui-medium);
+  color: var(--text-normal);
+  flex: 0 0 auto;
+}
+
+.oqm-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  min-height: 26px;
+  max-width: 240px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--interactive-accent);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+}
+
+.oqm-filter-chip:hover {
+  background: var(--interactive-accent-hover);
+  border-color: var(--interactive-accent-hover);
+}
+
+.oqm-filter-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oqm-filter-chip-x {
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.oqm-filter-chip:hover .oqm-filter-chip-x {
+  opacity: 1;
+}
+
+.oqm-filter-clear {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.oqm-filter-clear:hover {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
 .oqm-record-list {
   display: flex;
   flex-direction: column;
@@ -796,6 +869,8 @@ button.oqm-stat-card {
 .oqm-record-menu-trigger:focus-visible,
 .oqm-record-checkbox:focus-visible,
 .oqm-save:focus-visible,
+.oqm-filter-chip:focus-visible,
+.oqm-filter-clear:focus-visible,
 .oqm-heatmap-day:focus-visible,
 .oqm-input:focus-visible,
 .oqm-edit-input:focus-visible,

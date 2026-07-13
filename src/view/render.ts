@@ -1,4 +1,5 @@
 import type { HeatmapDay, QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
+import { activeFilterChips } from './viewState';
 import type { TypeFilter, ViewFilters } from './viewState';
 
 /** Markdown render bridge — render.ts stays free of Obsidian. The view injects
@@ -201,7 +202,11 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
 }
 
 function renderCrossDateTimeline(container: HTMLElement, state: OverviewState, callbacks: OverviewCallbacks, markdown: MarkdownApi): void {
-  appendEl(container, 'h3', '', '筛选结果');
+  // The filter bar (heading + removable chips + clear-all) renders before the
+  // results so the chips stay available even when nothing matches — the user
+  // needs a way to lift the filter from an empty result set.
+  renderFilterBar(container, state.filters, callbacks);
+
   if (state.records.length === 0) {
     const list = appendDiv(container, 'oqm-record-list');
     appendDiv(list, 'oqm-empty', '没有匹配的 Quick Memo。');
@@ -226,6 +231,41 @@ function renderCrossDateTimeline(container: HTMLElement, state: OverviewState, c
       const key = recordKey(record);
       renderRecord(cards, record, state.editingRecordId === key, state.openMenuRecordId === key, callbacks, markdown);
     }
+  }
+}
+
+/** Heading "筛选结果" plus one removable chip per active filter, inline on the
+ *  same row. A 清除全部 button is appended only when two or more conditions are
+ *  active (with a single chip it duplicates the chip's own removal). */
+function renderFilterBar(container: HTMLElement, filters: ViewFilters, callbacks: OverviewCallbacks): void {
+  const bar = appendDiv(container, 'oqm-filter-bar');
+  appendEl(bar, 'h3', 'oqm-filter-bar-title', '筛选结果');
+
+  const chips = activeFilterChips(filters);
+  for (const chip of chips) {
+    const button = appendEl(bar, 'button', 'oqm-filter-chip');
+    button.type = 'button';
+    button.title = `移除筛选：${chip.fullLabel}`;
+    button.setAttribute('aria-label', `移除筛选：${chip.fullLabel}`);
+    appendEl(button, 'span', 'oqm-filter-chip-label', chip.label);
+    const x = appendEl(button, 'span', 'oqm-filter-chip-x', '✕');
+    x.setAttribute('aria-hidden', 'true');
+    button.onclick = () => callbacks.onFilterChange(chip.clear);
+  }
+
+  // 清除全部 only when there's more than one condition — with a single chip it
+  // just duplicates the chip's own removal.
+  if (chips.length >= 2) {
+    const clearAll = appendEl(bar, 'button', 'oqm-filter-clear', '清除全部');
+    clearAll.type = 'button';
+    clearAll.title = '清除全部筛选';
+    clearAll.setAttribute('aria-label', '清除全部筛选');
+    clearAll.onclick = () => callbacks.onFilterChange({
+      type: undefined,
+      tag: undefined,
+      text: undefined,
+      todoStatus: undefined,
+    });
   }
 }
 

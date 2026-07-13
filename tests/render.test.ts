@@ -405,6 +405,108 @@ describe('renderOverview', () => {
     expect(groupHeadings).toEqual(['2026-06-18', '2026-06-17']);
   });
 
+  it('renders a removable chip for each active filter above the cross-date results', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [makeRecord('1', '2026-06-18', '09:00', 'flash', 'idea #a')],
+      tags: [['#a', 1]],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'flash', tag: '#a', text: 'idea' },
+      stats: makeStats(),
+    }, makeCallbacks());
+
+    const labels = Array.from(root.querySelectorAll('.oqm-filter-chip .oqm-filter-chip-label'))
+      .map((el) => el.textContent);
+    expect(labels).toEqual(['闪念', '#a', '关键词：idea']);
+    // Each chip carries a ✕ affordance.
+    expect(root.querySelectorAll('.oqm-filter-chip-x')).toHaveLength(3);
+  });
+
+  it('removes only the clicked condition when a chip is clicked', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [['#a', 1]],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'flash', tag: '#a' },
+      stats: makeStats(),
+    }, callbacks);
+
+    const chips = Array.from(root.querySelectorAll<HTMLButtonElement>('.oqm-filter-chip'));
+    chips[0].click(); // type chip
+    expect(callbacks.onFilterChange).toHaveBeenLastCalledWith({ type: undefined, todoStatus: undefined });
+    chips[1].click(); // tag chip
+    expect(callbacks.onFilterChange).toHaveBeenLastCalledWith({ tag: undefined });
+  });
+
+  it('shows a 清除全部 button only with two or more chips, clearing every condition', () => {
+    const oneRoot = document.createElement('div');
+    renderOverview(oneRoot, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { tag: '#a' },
+      stats: makeStats(),
+    }, makeCallbacks());
+    expect(oneRoot.querySelector('.oqm-filter-clear')).toBeNull();
+
+    const twoRoot = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(twoRoot, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'flash', tag: '#a' },
+      stats: makeStats(),
+    }, callbacks);
+    const clearAll = twoRoot.querySelector<HTMLButtonElement>('.oqm-filter-clear');
+    expect(clearAll).toBeTruthy();
+    clearAll!.click();
+    expect(callbacks.onFilterChange).toHaveBeenLastCalledWith({
+      type: undefined, tag: undefined, text: undefined, todoStatus: undefined,
+    });
+  });
+
+  it('still renders the filter chips when no records match so the user can lift the filter', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { tag: '#missing' },
+      stats: makeStats(),
+    }, makeCallbacks());
+
+    expect(root.querySelector('.oqm-filter-chip')).toBeTruthy();
+    expect(root.textContent).toContain('没有匹配');
+  });
+
   it('makes the flash/record/todo stat cards clickable to filter by type', () => {
     const root = document.createElement('div');
     const callbacks = makeCallbacks();

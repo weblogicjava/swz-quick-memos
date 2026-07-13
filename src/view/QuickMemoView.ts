@@ -4,7 +4,7 @@ import type { QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types
 import type { IndexService } from '../index/IndexService';
 import type { MarkdownRecordRepository } from '../markdown/MarkdownRecordRepository';
 import { randomIdSuffix } from '../markdown/id';
-import { filterRecordsForView, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
+import { filterRecordsForView, isSkippableFilterPatch, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
 import { renderOverview, recordKey } from './render';
 
 export class QuickMemoView extends ItemView {
@@ -187,11 +187,11 @@ export class QuickMemoView extends ItemView {
         void this.openSource(record);
       },
       onFilterChange: (filters) => {
-        const next = { ...this.filters, ...filters };
-        // Skip when the keyword text is unchanged — this also prevents the blur
-        // event fired during our own DOM teardown from re-triggering a search.
-        if ('text' in filters && (next.text ?? '') === (this.filters.text ?? '')) return;
-        this.filters = next;
+        // Skip only a no-op text re-commit (the search box's Enter/blur firing
+        // the same value during DOM teardown). Chip removals and clear-all must
+        // always apply — see isSkippableFilterPatch.
+        if (isSkippableFilterPatch(filters, this.filters)) return;
+        this.filters = { ...this.filters, ...filters };
         this.render();
       },
       onToggleMenu: (recordId) => {
