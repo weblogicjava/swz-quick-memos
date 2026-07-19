@@ -1,5 +1,5 @@
 import { App, Component, ItemView, MarkdownRenderer, Menu, Modal, Notice, Setting, WorkspaceLeaf } from 'obsidian';
-import { VIEW_TYPE_QUICK_MEMO } from '../constants';
+import { QUICK_MEMO_ICON, VIEW_TYPE_QUICK_MEMO } from '../constants';
 import type { QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
 import type { IndexService } from '../index/IndexService';
 import type { MarkdownRecordRepository } from '../markdown/MarkdownRecordRepository';
@@ -33,6 +33,12 @@ export class QuickMemoView extends ItemView {
 
   getDisplayText(): string {
     return 'Quick Memo';
+  }
+
+  /** Match the ribbon icon so the side-panel tab header and the left-ribbon
+   *  button show the same glyph. */
+  getIcon(): string {
+    return QUICK_MEMO_ICON;
   }
 
   async onOpen(): Promise<void> {

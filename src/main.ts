@@ -1,5 +1,5 @@
 import { Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
-import { VIEW_TYPE_QUICK_MEMO } from './constants';
+import { QUICK_MEMO_ICON, VIEW_TYPE_QUICK_MEMO } from './constants';
 import { DailyNoteResolver } from './daily-notes/DailyNoteResolver';
 import { getDailyNotesConfig } from './daily-notes/obsidianInternal';
 import { IndexService } from './index/IndexService';
@@ -65,7 +65,7 @@ export default class QuickMemoPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_QUICK_MEMO, (leaf) => new QuickMemoView(leaf, this.settings, repository, this.index));
 
-    this.addRibbonIcon('notebook-pen', 'Open Quick Memo', () => {
+    this.addRibbonIcon(QUICK_MEMO_ICON, 'Open Quick Memo', () => {
       void this.activateView();
     });
 

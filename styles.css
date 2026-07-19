@@ -2,6 +2,11 @@
    Uses Obsidian theme variables only so it follows light/dark themes. */
 
 .oqm-root {
+  /* Container query context: layout adapts to the width of whichever leaf hosts
+     the view (right sidebar vs. center editor), not the viewport. inline-size
+     containment is safe here - .oqm-root fills its leaf and sizes from its parent,
+     and only the inline axis is contained so min-height: 100% still resolves. */
+  container-type: inline-size;
   --oqm-heatmap-green-rgb: var(--color-green-rgb, 64, 160, 67);
   min-height: 100%;
   color: var(--text-normal);
@@ -46,10 +51,23 @@
 
 .oqm-layout {
   display: grid;
-  grid-template-columns: minmax(232px, 280px) minmax(380px, 1fr);
+  /* Default to a single stacked column so the view fits a narrow right sidebar.
+     The container query below widens to two columns once the hosting leaf has
+     room (e.g. the plugin is dragged into the center editor pane). Measuring the
+     view's own width - not the viewport - is what makes a 400px sidebar stack
+     while a 1000px editor splits, regardless of the overall window width. */
+  grid-template-columns: 1fr;
   align-items: start;
   gap: var(--size-4-4);
   padding: var(--size-4-4);
+}
+
+/* Two columns need >= 232 + 16 (gap) + 380 + 32 (padding) = 660px of leaf width;
+   700px gives a little headroom so the split doesn't engage right at the edge. */
+@container (min-width: 700px) {
+  .oqm-layout {
+    grid-template-columns: minmax(232px, 280px) minmax(380px, 1fr);
+  }
 }
 
 .oqm-sidebar,
@@ -884,11 +902,8 @@ button.oqm-stat-card {
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 900px) {
-  .oqm-layout {
-    grid-template-columns: 1fr;
-  }
-}
+/* Layout breakpoints are container queries (see .oqm-root / .oqm-layout above),
+   so only the prefers-reduced-motion media query remains here. */
 
 @media (prefers-reduced-motion: reduce) {
   .oqm-root *,
