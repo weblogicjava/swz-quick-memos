@@ -1,5 +1,7 @@
-import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
 import type { QuickMemoSettings, QuickMemoType, SortDirection } from '../types';
+import { normalizeSettings } from './settings';
+import { quickMemoSettingDefinitions } from './settingDefinitions';
 
 interface QuickMemoSettingsHost extends Plugin {
   settings: QuickMemoSettings;
@@ -9,6 +11,28 @@ interface QuickMemoSettingsHost extends Plugin {
 export class QuickMemoSettingTab extends PluginSettingTab {
   constructor(app: App, private readonly plugin: QuickMemoSettingsHost) {
     super(app, plugin);
+  }
+
+  /**
+   * Declarative settings (Obsidian 1.13.0+): the framework renders these and
+   * indexes them for the unified settings search, so the tab's settings are
+   * searchable. On 1.13.0+ display() is not called; display() below remains as
+   * the fallback for Obsidian < 1.13.0 (minAppVersion is 1.7.2). Keys/names/descs
+   * mirror display() so both paths render identically.
+   */
+  override getSettingDefinitions(): SettingDefinitionItem[] {
+    return quickMemoSettingDefinitions();
+  }
+
+  /**
+   * Persist a declarative control change. The base mutates `plugin.settings` and
+   * persists, but does not rebuild the index / refresh the open view — so route
+   * through `normalizeSettings` (same trim/defaults/validation as display()) and
+   * `saveSettings()` to keep heading/folder/format changes live.
+   */
+  override async setControlValue(key: string, value: unknown): Promise<void> {
+    this.plugin.settings = normalizeSettings({ ...this.plugin.settings, [key]: value });
+    await this.plugin.saveSettings();
   }
 
   display(): void {

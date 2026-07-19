@@ -479,7 +479,7 @@ function appendEl<K extends keyof HTMLElementTagNameMap>(
   cls: string,
   text?: string,
 ): HTMLElementTagNameMap[K] {
-  const el = activeDocument.createElement(tag);
+  const el = createEl(tag);
   if (cls) el.className = cls;
   if (text !== undefined) el.textContent = text;
   parent.appendChild(el);
@@ -487,7 +487,7 @@ function appendEl<K extends keyof HTMLElementTagNameMap>(
 }
 
 function appendOption(select: HTMLSelectElement, label: string, value: string): void {
-  const option = activeDocument.createElement('option');
+  const option = createEl('option');
   option.textContent = label;
   option.value = value;
   select.appendChild(option);

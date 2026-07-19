@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, normalizeSettings } from '../src/settings/settings';
+import { quickMemoSettingDefinitions } from '../src/settings/settingDefinitions';
 
 const saved = {
   userName: 'Ada',
@@ -38,5 +39,38 @@ describe('settings', () => {
     const normalized = normalizeSettings({ defaultRecordType: 'idea', sortDirection: 'newest' });
     expect(normalized.defaultRecordType).toBe('flash');
     expect(normalized.sortDirection).toBe('desc');
+  });
+});
+
+// Drives the declarative settings API (Obsidian 1.13.0+). display() is the
+// <1.13.0 fallback; these definitions must stay in sync with it and with the
+// QuickMemoSettings shape so search + declarative render match the imperative UI.
+describe('quickMemoSettingDefinitions', () => {
+  type ControlDef = { key: string; type: string; options?: Record<string, string> };
+  // Every definition returned is a control definition (see settingDefinitions.ts);
+  // cast to read `control`. The "one control per key" assertion below catches any
+  // drift if a non-control item is ever introduced.
+  const controls: ControlDef[] = (quickMemoSettingDefinitions() as ReadonlyArray<{ control: ControlDef }>)
+    .map((d) => d.control);
+
+  it('defines exactly one control per QuickMemoSettings key', () => {
+    expect(controls.map((c) => c.key).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
+  });
+
+  it('uses toggle for booleans, dropdown for enums, text for the rest', () => {
+    const byKey = new Map(controls.map((c) => [c.key, c.type]));
+    expect(byKey.get('overrideDailyNotesConfig')).toBe('toggle');
+    expect(byKey.get('enableBlockIds')).toBe('toggle');
+    expect(byKey.get('defaultRecordType')).toBe('dropdown');
+    expect(byKey.get('sortDirection')).toBe('dropdown');
+    for (const textKey of ['userName', 'userSlogan', 'avatar', 'quickMemoHeading', 'fallbackDailyNotesFolder', 'fallbackDateFormat']) {
+      expect(byKey.get(textKey)).toBe('text');
+    }
+  });
+
+  it('exposes dropdown options matching the imperative UI', () => {
+    const byKey = new Map(controls.map((c) => [c.key, c]));
+    expect(byKey.get('defaultRecordType')?.options).toEqual({ record: '记录', flash: '闪念', todo: '待办' });
+    expect(byKey.get('sortDirection')?.options).toEqual({ desc: '最新在上', asc: '最早在上' });
   });
 });
