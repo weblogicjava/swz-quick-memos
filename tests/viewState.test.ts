@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuickMemoRecord } from '../src/types';
-import { activeFilterChips, dateRangeForPreset, filterRecordsForView, isSkippableFilterPatch, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
+import { activeFilterChips, crossDateFiltersActive, dateRangeForPreset, filterRecordsForView, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
 
 const records: QuickMemoRecord[] = [
   makeRecord('1', '2026-06-18', '09:00', 'flash', 'idea #a'),
@@ -39,6 +39,19 @@ describe('viewState', () => {
     // selectedDate is 2026-06-18, but type 'record' also matches 2026-06-17.
     expect(filterRecordsForView(records, { selectedDate: '2026-06-18', type: 'record' }).map((record) => record.id)).toEqual(['3']);
   });
+
+  it('narrows cross-date results to dateScope (date + condition)', () => {
+    // type 'todo' matches record 2 on 2026-06-18; dateScope pins to that day.
+    expect(filterRecordsForView(records, { type: 'todo', dateScope: '2026-06-18' }).map((record) => record.id)).toEqual(['2']);
+    // Pinning to a day with no matching todos yields nothing.
+    expect(filterRecordsForView(records, { type: 'todo', dateScope: '2026-06-17' }).map((record) => record.id)).toEqual([]);
+  });
+
+  it('lets dateScope override selectedDate when both are set in cross-date mode', () => {
+    // selectedDate points at 06-18, but dateScope pins 06-17 for the #a tag query.
+    expect(filterRecordsForView(records, { selectedDate: '2026-06-18', tag: '#a', dateScope: '2026-06-17' }).map((record) => record.id)).toEqual(['3']);
+  });
+
 
   it('filters open todos only when todoStatus is open', () => {
     const set: QuickMemoRecord[] = [
@@ -131,6 +144,66 @@ describe('viewState', () => {
       const chips = activeFilterChips({ type: 'flash', tag: '#a', text: 'long query' });
       expect(chips.map((chip) => chip.key)).toEqual(['type', 'tag', 'text']);
       expect(chips[2].fullLabel).toBe('关键词：long query');
+    });
+
+    it('emits a date chip when dateScope is set, clearing only dateScope', () => {
+      const chips = activeFilterChips({ type: 'todo', todoStatus: 'open', dateScope: '2026-06-17' });
+      const dateChip = chips.find((chip) => chip.key === 'date');
+      expect(dateChip).toMatchObject({ key: 'date', label: '日期：2026-06-17', fullLabel: '日期：2026-06-17' });
+      expect(dateChip?.clear).toEqual({ dateScope: undefined });
+    });
+
+    it('places the date chip before type, tag, and keyword', () => {
+      const chips = activeFilterChips({ dateScope: '2026-06-17', type: 'flash', tag: '#a', text: 'x' });
+      expect(chips.map((chip) => chip.key)).toEqual(['date', 'type', 'tag', 'text']);
+    });
+
+    it('does not emit a date chip when dateScope is unset', () => {
+      expect(activeFilterChips({ type: 'flash' }).some((chip) => chip.key === 'date')).toBe(false);
+    });
+  });
+
+  describe('crossDateFiltersActive', () => {
+    it('is true for a type filter', () => {
+      expect(crossDateFiltersActive({ type: 'flash' })).toBe(true);
+    });
+
+    it('is false for type all', () => {
+      expect(crossDateFiltersActive({ type: 'all' })).toBe(false);
+    });
+
+    it('is true for a tag filter', () => {
+      expect(crossDateFiltersActive({ tag: '#a' })).toBe(true);
+    });
+
+    it('is true for a keyword filter', () => {
+      expect(crossDateFiltersActive({ text: 'x' })).toBe(true);
+    });
+
+    it('is false with no filter (single-day mode)', () => {
+      expect(crossDateFiltersActive({ selectedDate: '2026-06-18' })).toBe(false);
+    });
+
+    it('ignores whitespace-only text', () => {
+      expect(crossDateFiltersActive({ text: '   ' })).toBe(false);
+    });
+
+    it('ignores dateScope alone (it only narrows an existing cross-date query)', () => {
+      expect(crossDateFiltersActive({ dateScope: '2026-06-17' })).toBe(false);
+    });
+  });
+
+  describe('normalizeFilters', () => {
+    it('drops dateScope when no cross-date filter remains', () => {
+      expect(normalizeFilters({ dateScope: '2026-06-17' })).toEqual({});
+    });
+
+    it('keeps dateScope when a cross-date filter is present', () => {
+      expect(normalizeFilters({ type: 'todo', dateScope: '2026-06-17' })).toEqual({ type: 'todo', dateScope: '2026-06-17' });
+    });
+
+    it('leaves filters without dateScope unchanged', () => {
+      expect(normalizeFilters({ type: 'flash', tag: '#a' })).toEqual({ type: 'flash', tag: '#a' });
     });
   });
 

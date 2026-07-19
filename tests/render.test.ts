@@ -380,6 +380,78 @@ describe('renderOverview', () => {
     expect(root.querySelector('.oqm-composer-date')?.textContent).toBe('2026-06-21');
   });
 
+  it('submit calls onSave with the selected type and trimmed content', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    callbacks.onSave = vi.fn().mockResolvedValue(true);
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-21',
+      todayDate: '2026-06-21',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: {},
+      stats: makeStats(),
+    }, callbacks);
+
+    const input = root.querySelector<HTMLTextAreaElement>('.oqm-input')!;
+    input.value = '  hello world  ';
+    (root.querySelector<HTMLSelectElement>('.oqm-type')!).value = 'flash';
+    root.querySelector<HTMLButtonElement>('.oqm-save')!.click();
+
+    expect(callbacks.onSave).toHaveBeenCalledWith({ type: 'flash', content: 'hello world' });
+  });
+
+  it('clears the composer input only when onSave resolves true', async () => {
+    const saved = document.createElement('div');
+    const savedCallbacks = makeCallbacks();
+    savedCallbacks.onSave = vi.fn().mockResolvedValue(true);
+    renderOverview(saved, {
+      settings: DEFAULT_SETTINGS, records: [], tags: [], heatmap: [],
+      selectedDate: '2026-06-21', todayDate: '2026-06-21',
+      editingRecordId: undefined, openMenuRecordId: undefined, filters: {}, stats: makeStats(),
+    }, savedCallbacks);
+    const savedInput = saved.querySelector<HTMLTextAreaElement>('.oqm-input')!;
+    savedInput.value = 'keep me';
+    saved.querySelector<HTMLButtonElement>('.oqm-save')!.click();
+    // submit awaits onSave before clearing; flush the microtask queue (a bare
+    // await Promise.resolve() doesn't reach submit's post-await continuation).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(savedInput.value).toBe('');
+
+    const cancelled = document.createElement('div');
+    const cancelledCallbacks = makeCallbacks();
+    cancelledCallbacks.onSave = vi.fn().mockResolvedValue(false);
+    renderOverview(cancelled, {
+      settings: DEFAULT_SETTINGS, records: [], tags: [], heatmap: [],
+      selectedDate: '2026-06-21', todayDate: '2026-06-21',
+      editingRecordId: undefined, openMenuRecordId: undefined, filters: {}, stats: makeStats(),
+    }, cancelledCallbacks);
+    const cancelledInput = cancelled.querySelector<HTMLTextAreaElement>('.oqm-input')!;
+    cancelledInput.value = 'keep me';
+    cancelled.querySelector<HTMLButtonElement>('.oqm-save')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Cancel preserves the text so the user can edit/retry.
+    expect(cancelledInput.value).toBe('keep me');
+  });
+
+  it('does not call onSave for whitespace-only content', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    callbacks.onSave = vi.fn().mockResolvedValue(true);
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS, records: [], tags: [], heatmap: [],
+      selectedDate: '2026-06-21', todayDate: '2026-06-21',
+      editingRecordId: undefined, openMenuRecordId: undefined, filters: {}, stats: makeStats(),
+    }, callbacks);
+    root.querySelector<HTMLTextAreaElement>('.oqm-input')!.value = '   ';
+    root.querySelector<HTMLButtonElement>('.oqm-save')!.click();
+    expect(callbacks.onSave).not.toHaveBeenCalled();
+  });
+
   it('groups records by date when a tag or text filter spans multiple dates', () => {
     const root = document.createElement('div');
     renderOverview(root, {
@@ -403,6 +475,53 @@ describe('renderOverview', () => {
     // Date group headings appear, newest date first.
     const groupHeadings = Array.from(root.querySelectorAll('.oqm-date-group-heading')).map((el) => el.textContent);
     expect(groupHeadings).toEqual(['2026-06-18', '2026-06-17']);
+  });
+
+  it('renders a removable date chip when dateScope narrows a cross-date query', () => {
+    const root = document.createElement('div');
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      // Records arrive already filtered by the view (filterRecordsForView
+      // applies dateScope); renderOverview only groups what it is given.
+      records: [makeRecord('2', '2026-06-17', '08:00', 'todo', 'prev todo', false)],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'todo', todoStatus: 'open', dateScope: '2026-06-17' },
+      stats: makeStats(),
+    }, makeCallbacks());
+
+    // The drilled-in day is rendered as a date group ...
+    const groupHeadings = Array.from(root.querySelectorAll('.oqm-date-group-heading')).map((el) => el.textContent);
+    expect(groupHeadings).toEqual(['2026-06-17']);
+    // ... and surfaced as a removable date chip alongside the type chip.
+    const labels = Array.from(root.querySelectorAll('.oqm-filter-chip .oqm-filter-chip-label')).map((el) => el.textContent);
+    expect(labels).toEqual(['日期：2026-06-17', '未完成待办']);
+  });
+
+  it('removes only dateScope when the date chip is clicked', () => {
+    const root = document.createElement('div');
+    const callbacks = makeCallbacks();
+    renderOverview(root, {
+      settings: DEFAULT_SETTINGS,
+      records: [],
+      tags: [],
+      heatmap: [],
+      selectedDate: '2026-06-18',
+      todayDate: '2026-06-18',
+      editingRecordId: undefined,
+      openMenuRecordId: undefined,
+      filters: { type: 'flash', dateScope: '2026-06-17' },
+      stats: makeStats(),
+    }, callbacks);
+
+    const dateChip = Array.from(root.querySelectorAll<HTMLButtonElement>('.oqm-filter-chip'))
+      .find((button) => button.textContent?.includes('日期'));
+    dateChip?.click();
+    expect(callbacks.onFilterChange).toHaveBeenLastCalledWith({ dateScope: undefined });
   });
 
   it('renders a removable chip for each active filter above the cross-date results', () => {
@@ -484,7 +603,7 @@ describe('renderOverview', () => {
     expect(clearAll).toBeTruthy();
     clearAll!.click();
     expect(callbacks.onFilterChange).toHaveBeenLastCalledWith({
-      type: undefined, tag: undefined, text: undefined, todoStatus: undefined,
+      type: undefined, tag: undefined, text: undefined, todoStatus: undefined, dateScope: undefined,
     });
   });
 

@@ -4,7 +4,7 @@ import type { QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types
 import type { IndexService } from '../index/IndexService';
 import type { MarkdownRecordRepository } from '../markdown/MarkdownRecordRepository';
 import { randomIdSuffix } from '../markdown/id';
-import { filterRecordsForView, isSkippableFilterPatch, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
+import { crossDateFiltersActive, filterRecordsForView, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
 import { renderOverview, recordKey } from './render';
 
 export class QuickMemoView extends ItemView {
@@ -154,9 +154,16 @@ export class QuickMemoView extends ItemView {
         },
       },
     }, {
-      onSave: (draft) => void this.saveDraft(draft),
+      onSave: (draft) => this.saveDraft(draft),
       onSelectDate: (date) => {
         this.selectedDate = date;
+        // Clicking a day while a cross-date filter is active drills into that
+        // day (date + condition), surfaced as a removable date chip. With no
+        // filter active it is ordinary single-day navigation and dateScope stays
+        // unset, so the heatmap just moves the single-day view.
+        if (crossDateFiltersActive(this.filters)) {
+          this.filters = { ...this.filters, dateScope: date };
+        }
         this.render();
       },
       onToggleTodo: (record) => {
@@ -191,7 +198,9 @@ export class QuickMemoView extends ItemView {
         // the same value during DOM teardown). Chip removals and clear-all must
         // always apply — see isSkippableFilterPatch.
         if (isSkippableFilterPatch(filters, this.filters)) return;
-        this.filters = { ...this.filters, ...filters };
+        // normalizeFilters drops a stale dateScope once the last cross-date
+        // filter is removed (the pin is meaningless in single-day mode).
+        this.filters = normalizeFilters({ ...this.filters, ...filters });
         this.render();
       },
       onToggleMenu: (recordId) => {
@@ -228,10 +237,25 @@ export class QuickMemoView extends ItemView {
     new Notice(count > 0 ? `已从 ${count} 条记录中移除 ${tag}` : `没有记录包含标签 ${tag}（已刷新列表）`);
   }
 
-  private async saveDraft(draft: { type: QuickMemoType; content: string }): Promise<void> {
+  private async saveDraft(draft: { type: QuickMemoType; content: string }): Promise<boolean> {
+    // Resolve the target date. Capturing while browsing a non-today day prompts
+    // the user to confirm where the record goes; cancel aborts without saving
+    // (and the composer keeps its text). Returns false on cancel so the renderer
+    // knows to preserve the input.
+    const todayDate = today();
+    let date = this.selectedDate;
+    if (this.selectedDate !== todayDate) {
+      const choice = await chooseSaveDateDialog(this.app, this.selectedDate, todayDate);
+      if (choice === undefined) return false;
+      if (choice === 'today') {
+        date = todayDate;
+        // Jump the view to today so the just-saved record is immediately visible.
+        this.selectedDate = todayDate;
+      }
+    }
     const [content, ...bodyLines] = draft.content.replace(/\r\n/gu, '\n').split('\n');
     await this.repository.appendRecord({
-      date: this.selectedDate,
+      date,
       time: currentTime(),
       type: draft.type,
       content,
@@ -240,6 +264,7 @@ export class QuickMemoView extends ItemView {
     }, randomIdSuffix());
     await this.index.rebuild();
     this.render();
+    return true;
   }
 
   private async toggleTodo(record: QuickMemoRecord): Promise<void> {
@@ -367,6 +392,38 @@ function confirmDialog(app: App, title: string, message: string): Promise<boolea
         .setCta()
         .onClick(() => {
           result = true;
+          modal.close();
+        }))
+      .addButton((button) => button
+        .setButtonText('取消')
+        .onClick(() => modal.close()));
+    modal.onClose = () => resolve(result);
+    modal.open();
+  });
+}
+
+/** Modal that asks where to save a record when the user captures on a non-today
+ *  date. Three buttons in one row: save to the selected date (primary CTA, since
+ *  the user is already composing there), save to today, or cancel. Resolves
+ *  'selected' | 'today' | undefined (undefined = cancelled / closed). */
+function chooseSaveDateDialog(app: App, selectedDate: string, todayDate: string): Promise<'today' | 'selected' | undefined> {
+  return new Promise((resolve) => {
+    const modal = new Modal(app);
+    modal.setTitle('提醒');
+    modal.setContent(`当前选择的是 ${selectedDate}，不是今天（${todayDate}）。这条记录要保存到哪一天？`);
+    let result: 'today' | 'selected' | undefined = undefined;
+    new Setting(modal.contentEl)
+      .addButton((button) => button
+        .setButtonText(`保存到 ${selectedDate}`)
+        .setCta()
+        .onClick(() => {
+          result = 'selected';
+          modal.close();
+        }))
+      .addButton((button) => button
+        .setButtonText('保存到今天')
+        .onClick(() => {
+          result = 'today';
           modal.close();
         }))
       .addButton((button) => button

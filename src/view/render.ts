@@ -1,5 +1,5 @@
 import type { HeatmapDay, QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types';
-import { activeFilterChips } from './viewState';
+import { activeFilterChips, crossDateFiltersActive } from './viewState';
 import type { TypeFilter, ViewFilters } from './viewState';
 
 /** Markdown render bridge — render.ts stays free of Obsidian. The view injects
@@ -41,7 +41,7 @@ export interface OverviewState {
 }
 
 export interface OverviewCallbacks {
-  onSave(draft: { type: QuickMemoType; content: string }): void;
+  onSave(draft: { type: QuickMemoType; content: string }): Promise<boolean>;
   onSelectDate(date: string): void;
   onToggleTodo(record: QuickMemoRecord): void;
   onEdit(record: QuickMemoRecord): void;
@@ -168,21 +168,22 @@ function renderMain(container: HTMLElement, state: OverviewState, callbacks: Ove
   input.placeholder = '输入 Markdown，Cmd/Ctrl + Enter 保存';
 
   const save = appendEl(composer, 'button', 'oqm-save', '保存');
-  const submit = (): void => {
+  const submit = async (): Promise<void> => {
     const content = input.value.trim();
     if (!content) return;
-    callbacks.onSave({ type: type.value as QuickMemoType, content });
-    input.value = '';
+    // onSave resolves false when the user cancels the save-to-date dialog; in
+    // that case keep the text and focus so they can edit/retry instead of losing it.
+    const saved = await callbacks.onSave({ type: type.value as QuickMemoType, content });
+    if (saved) input.value = '';
   };
-  save.onclick = submit;
+  save.onclick = () => { void submit(); };
   input.onkeydown = (event: KeyboardEvent) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') submit();
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void submit();
   };
 
   // Tag / keyword / type filters are vault-wide: group the results by date
   // instead of showing a single-day timeline. Otherwise it's the normal view.
-  const hasType = state.filters.type !== undefined && state.filters.type !== 'all';
-  const crossDate = Boolean(state.filters.tag) || Boolean(state.filters.text?.trim()) || hasType;
+  const crossDate = crossDateFiltersActive(state.filters);
   if (crossDate) {
     renderCrossDateTimeline(container, state, callbacks, markdown);
     return;
@@ -265,6 +266,7 @@ function renderFilterBar(container: HTMLElement, filters: ViewFilters, callbacks
       tag: undefined,
       text: undefined,
       todoStatus: undefined,
+      dateScope: undefined,
     });
   }
 }
