@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: QuickMemoSettings = {
   enableBlockIds: true,
   defaultRecordType: 'flash',
   sortDirection: 'desc',
+  deletedTags: [],
 };
 
 const VALID_TYPES: QuickMemoType[] = ['record', 'flash', 'todo'];
@@ -37,8 +38,24 @@ export function normalizeSettings(raw: unknown): QuickMemoSettings {
   merged.fallbackDailyNotesFolder = ensureString(merged.fallbackDailyNotesFolder, DEFAULT_SETTINGS.fallbackDailyNotesFolder).trim();
   merged.fallbackDateFormat = ensureString(merged.fallbackDateFormat, DEFAULT_SETTINGS.fallbackDateFormat).trim() || DEFAULT_SETTINGS.fallbackDateFormat;
   merged.enableBlockIds = typeof merged.enableBlockIds === 'boolean' ? merged.enableBlockIds : DEFAULT_SETTINGS.enableBlockIds;
+  merged.deletedTags = normalizeTagList(merged.deletedTags);
 
   return merged;
+}
+
+/** Coerce deletedTags to a deduped array of non-empty strings. The hide path
+ *  always stores `#`-prefixed values, so we don't force the prefix here. */
+function normalizeTagList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of value) {
+    if (typeof v === 'string' && v.trim().length > 0 && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out;
 }
 
 function ensureString(value: unknown, fallback: string): string {

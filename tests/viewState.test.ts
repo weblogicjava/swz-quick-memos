@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QuickMemoRecord } from '../src/types';
-import { activeFilterChips, crossDateFiltersActive, dateRangeForPreset, filterRecordsForView, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
+import { activeFilterChips, crossDateFiltersActive, dateRangeForPreset, filterRecordsForView, filterVisibleTags, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay } from '../src/view/viewState';
 
 const records: QuickMemoRecord[] = [
   makeRecord('1', '2026-06-18', '09:00', 'flash', 'idea #a'),
@@ -231,6 +231,22 @@ describe('viewState', () => {
 
     it('applies a plain type change', () => {
       expect(isSkippableFilterPatch({ type: 'flash', todoStatus: undefined }, {})).toBe(false);
+    });
+  });
+
+  describe('filterVisibleTags', () => {
+    const tags: Array<[string, number]> = [['#a', 3], ['#b', 1], ['#c', 2]];
+
+    it('drops soft-deleted tags', () => {
+      expect(filterVisibleTags(tags, ['#b'])).toEqual([['#a', 3], ['#c', 2]]);
+    });
+
+    it('passes the same array through when nothing is hidden', () => {
+      expect(filterVisibleTags(tags, [])).toBe(tags);
+    });
+
+    it('returns everything when no tag is deleted', () => {
+      expect(filterVisibleTags(tags, [])).toEqual([['#a', 3], ['#b', 1], ['#c', 2]]);
     });
   });
 

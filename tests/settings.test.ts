@@ -13,6 +13,7 @@ const saved = {
   enableBlockIds: false,
   defaultRecordType: 'flash' as const,
   sortDirection: 'asc' as const,
+  deletedTags: ['#archived'],
 };
 
 describe('settings', () => {
@@ -28,6 +29,7 @@ describe('settings', () => {
       enableBlockIds: true,
       defaultRecordType: 'flash',
       sortDirection: 'desc',
+      deletedTags: [],
     });
   });
 
@@ -40,6 +42,12 @@ describe('settings', () => {
     expect(normalized.defaultRecordType).toBe('flash');
     expect(normalized.sortDirection).toBe('desc');
   });
+
+  it('normalizes deletedTags to a deduped string array', () => {
+    expect(normalizeSettings({}).deletedTags).toEqual([]);
+    expect(normalizeSettings({ deletedTags: ['#a', '#b', '#a', 5, ''] }).deletedTags).toEqual(['#a', '#b']);
+    expect(normalizeSettings({ deletedTags: 'not-an-array' }).deletedTags).toEqual([]);
+  });
 });
 
 // Drives the declarative settings API (Obsidian 1.13.0+). display() is the
@@ -49,12 +57,16 @@ describe('quickMemoSettingDefinitions', () => {
   type ControlDef = { key: string; type: string; options?: Record<string, string> };
   // Every definition returned is a control definition (see settingDefinitions.ts);
   // cast to read `control`. The "one control per key" assertion below catches any
-  // drift if a non-control item is ever introduced.
+  // drift if a new *scalar* setting is introduced without a matching control.
+  // `deletedTags` is the exception: it is a list managed via a SettingDefinitionAction
+  // in SettingsTab (a "管理已删除标签" button + modal), not a scalar control, so it
+  // is excluded from the control/key parity check.
   const controls: ControlDef[] = (quickMemoSettingDefinitions() as ReadonlyArray<{ control: ControlDef }>)
     .map((d) => d.control);
 
-  it('defines exactly one control per QuickMemoSettings key', () => {
-    expect(controls.map((c) => c.key).sort()).toEqual(Object.keys(DEFAULT_SETTINGS).sort());
+  it('defines exactly one control per scalar QuickMemoSettings key', () => {
+    const scalarKeys = Object.keys(DEFAULT_SETTINGS).filter((k) => k !== 'deletedTags');
+    expect(controls.map((c) => c.key).sort()).toEqual(scalarKeys.sort());
   });
 
   it('uses toggle for booleans, dropdown for enums, text for the rest', () => {

@@ -13,6 +13,10 @@ export interface QuickMemoSettings {
   enableBlockIds: boolean;
   defaultRecordType: QuickMemoType;
   sortDirection: SortDirection;
+  /** Tags hidden from the sidebar tag list via right-click "删除标签" (soft
+   *  delete). The `#tag` text stays in the records; restore via 设置 →
+   *  管理已删除标签. Stored with the leading `#`, matching IndexService.tags(). */
+  deletedTags: string[];
 }
 
 export interface RecordDraft {

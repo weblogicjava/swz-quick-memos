@@ -69,6 +69,16 @@ export function activeFilterChips(filters: ViewFilters): ActiveFilterChip[] {
   return chips;
 }
 
+/** Drop soft-deleted tags (settings.deletedTags) from the index's `[tag, count]`
+ *  pairs so they don't appear in the sidebar tag list. The `#tag` text remains in
+ *  the records — this is display-only. Pass-through (same array) when nothing is
+ *  hidden, so the common case allocates nothing. */
+export function filterVisibleTags(tags: Array<[string, number]>, deletedTags: readonly string[]): Array<[string, number]> {
+  if (deletedTags.length === 0) return tags;
+  const hidden = new Set(deletedTags);
+  return tags.filter(([tag]) => !hidden.has(tag));
+}
+
 /** Label for the active type filter, mirroring the composite select options.
  *  Returns undefined when no type chip should appear (none / `all`). */
 function typeChipLabel(filters: ViewFilters): string | undefined {

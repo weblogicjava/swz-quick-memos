@@ -1,6 +1,6 @@
 # Quick Memo — Obsidian Quick Capture Plugin
 
-![Quick Memo preview](imgs/Snipaste_2026-06-21_15-01-27.png)
+![Quick Memo 预览](./imgs/quickmemo.png)
 
 Quick Memo is a Markdown-native Obsidian plugin for fast daily capture of **records**, **flash thoughts** (闪念), and **todos**. It is database-free — the Daily Note Markdown file is the single source of truth. The plugin reads and writes one `## Quick Memo` section per day and keeps a rebuildable in-memory index for search, filters, and a 90-day activity heatmap. Records are stored in dedicated `yyyy-MM-dd-quick-memos.md` files, so your regular `yyyy-MM-dd.md` daily notes are never touched.
 

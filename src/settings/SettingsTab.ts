@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
+import { App, Modal, Plugin, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
 import type { QuickMemoSettings, QuickMemoType, SortDirection } from '../types';
 import { normalizeSettings } from './settings';
 import { quickMemoSettingDefinitions } from './settingDefinitions';
@@ -21,7 +21,19 @@ export class QuickMemoSettingTab extends PluginSettingTab {
    * mirror display() so both paths render identically.
    */
   override getSettingDefinitions(): SettingDefinitionItem[] {
-    return quickMemoSettingDefinitions();
+    // The scalar controls live in pure, unit-tested quickMemoSettingDefinitions();
+    // append the plugin-backed "manage deleted tags" action here (it needs the
+    // plugin ref, which the pure data module can't import).
+    return [
+      ...quickMemoSettingDefinitions(),
+      {
+        name: '管理已删除标签',
+        desc: '恢复被隐藏（右键删除）的标签。',
+        action: () => {
+          manageDeletedTagsDialog(this.app, this.plugin);
+        },
+      },
+    ];
   }
 
   /**
@@ -31,7 +43,12 @@ export class QuickMemoSettingTab extends PluginSettingTab {
    * `saveSettings()` to keep heading/folder/format changes live.
    */
   override async setControlValue(key: string, value: unknown): Promise<void> {
-    this.plugin.settings = normalizeSettings({ ...this.plugin.settings, [key]: value });
+    // Mutate `plugin.settings` in place rather than reassigning. The long-lived
+    // QuickMemoView captured the same object reference at construction; reassigning
+    // here would leave the view reading a stale object (and break tag hide/restore,
+    // which the view mutates on that shared reference). display() already mutates
+    // in place, so this aligns the two render paths.
+    Object.assign(this.plugin.settings, normalizeSettings({ ...this.plugin.settings, [key]: value }));
     await this.plugin.saveSettings();
   }
 
@@ -141,5 +158,45 @@ export class QuickMemoSettingTab extends PluginSettingTab {
           this.plugin.settings.sortDirection = value as SortDirection;
           await this.plugin.saveSettings();
         }));
+
+    new Setting(containerEl)
+      .setName('管理已删除标签')
+      .setDesc('恢复被隐藏（右键删除）的标签。')
+      .addButton((button) => button
+        .setButtonText('管理')
+        .onClick(() => manageDeletedTagsDialog(this.app, this.plugin)));
   }
+}
+
+/** Modal listing soft-deleted tags (settings.deletedTags) with a 恢复 button each.
+ *  Restoring splices the tag out and persists via saveSettings (which also rebuilds
+ *  the index and refreshes the open view so the tag reappears in the sidebar),
+ *  then re-renders the list. Same Modal/Setting idiom as the view's dialogs. */
+function manageDeletedTagsDialog(app: App, host: QuickMemoSettingsHost): void {
+  const modal = new Modal(app);
+  modal.setTitle('管理已删除标签');
+  const listEl = modal.contentEl.createDiv();
+
+  const renderRows = (): void => {
+    listEl.empty();
+    const tags = host.settings.deletedTags;
+    if (tags.length === 0) {
+      listEl.createEl('p', { text: '没有已删除的标签。右键侧栏标签即可删除（隐藏）。' });
+      return;
+    }
+    for (const tag of tags) {
+      new Setting(listEl)
+        .setName(tag)
+        .addButton((button) => button
+          .setButtonText('恢复')
+          .onClick(async () => {
+            host.settings.deletedTags = host.settings.deletedTags.filter((t) => t !== tag);
+            await host.saveSettings();
+            renderRows();
+          }));
+    }
+  };
+
+  renderRows();
+  modal.open();
 }

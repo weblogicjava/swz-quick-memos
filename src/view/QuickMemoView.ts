@@ -4,7 +4,7 @@ import type { QuickMemoRecord, QuickMemoSettings, QuickMemoType } from '../types
 import type { IndexService } from '../index/IndexService';
 import type { MarkdownRecordRepository } from '../markdown/MarkdownRecordRepository';
 import { randomIdSuffix } from '../markdown/id';
-import { crossDateFiltersActive, filterRecordsForView, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
+import { crossDateFiltersActive, filterRecordsForView, filterVisibleTags, isSkippableFilterPatch, normalizeFilters, rollSelectedDate, sortRecordsForDisplay, type ViewFilters } from './viewState';
 import { renderOverview, recordKey } from './render';
 
 export class QuickMemoView extends ItemView {
@@ -23,6 +23,9 @@ export class QuickMemoView extends ItemView {
     private readonly settings: QuickMemoSettings,
     private readonly repository: MarkdownRecordRepository,
     private readonly index: IndexService,
+    /** Persist a settings change from the view (hide tag). Routes through the
+     *  plugin's saveSettings so it saves, rebuilds the index, and refreshes. */
+    private readonly saveSettings: () => Promise<void>,
   ) {
     super(leaf);
   }
@@ -143,7 +146,7 @@ export class QuickMemoView extends ItemView {
     renderOverview(this.contentEl, {
       settings: this.settings,
       records,
-      tags: this.index.tags(),
+      tags: filterVisibleTags(this.index.tags(), this.settings.deletedTags),
       heatmap: this.index.heatmap(),
       selectedDate: this.selectedDate,
       todayDate: today(),
@@ -215,7 +218,7 @@ export class QuickMemoView extends ItemView {
       },
       onTagContext: (tag, event) => {
         const menu = new Menu();
-        menu.addItem((item) => item.setTitle('删除标签').setIcon('trash').onClick(() => void this.deleteTag(tag)));
+        menu.addItem((item) => item.setTitle('删除标签').setIcon('trash').onClick(() => void this.hideTag(tag)));
         menu.showAtMouseEvent(event);
       },
     });
@@ -234,13 +237,17 @@ export class QuickMemoView extends ItemView {
     }
   }
 
-  private async deleteTag(tag: string): Promise<void> {
-    const confirmed = await confirmDialog(this.app, '删除标签', `从所有 Quick Memo 记录中移除标签 ${tag}？\n此操作会修改包含该标签的 Daily Note 文件。`);
-    if (!confirmed) return;
-    const count = await this.repository.removeTag(tag);
-    await this.index.rebuild();
-    this.render();
-    new Notice(count > 0 ? `已从 ${count} 条记录中移除 ${tag}` : `没有记录包含标签 ${tag}（已刷新列表）`);
+  /** Soft-delete (hide) a tag: add it to settings.deletedTags and persist. The
+   *  `#tag` text stays in the records; the tag only leaves the sidebar list.
+   *  Restorable via 设置 → 管理已删除标签. No confirm dialog — the action is
+   *  reversible, so a Notice pointing at restore is enough. */
+  private async hideTag(tag: string): Promise<void> {
+    if (this.settings.deletedTags.includes(tag)) return;
+    this.settings.deletedTags = [...this.settings.deletedTags, tag];
+    // A hidden tag can't stay as the active filter — its chip left the list.
+    if (this.filters.tag === tag) this.filters = { ...this.filters, tag: undefined };
+    await this.saveSettings();
+    new Notice(`已从标签列表移除 ${tag}，可在「设置 → 管理已删除标签」中恢复`);
   }
 
   private async saveDraft(draft: { type: QuickMemoType; content: string }): Promise<boolean> {
