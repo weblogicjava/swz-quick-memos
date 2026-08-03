@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, WorkspaceLeaf } from 'obsidian';
+import { Notice, Plugin, TFile } from 'obsidian';
 import { QUICK_MEMO_ICON, VIEW_TYPE_QUICK_MEMO } from './constants';
 import { DailyNoteResolver } from './daily-notes/DailyNoteResolver';
 import { getDailyNotesConfig } from './daily-notes/obsidianInternal';
